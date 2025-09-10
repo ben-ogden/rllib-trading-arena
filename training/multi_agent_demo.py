@@ -121,7 +121,7 @@ def run_multi_agent_demo():
                     "momentum_trader": (None, None, None, {}),
                     "arbitrageur": (None, None, None, {}),
                 },
-                policy_mapping_fn=lambda agent_id, episode, worker, **kwargs: agent_id.split("_")[0],
+                policy_mapping_fn=lambda agent_id, episode, **kwargs: agent_id.split("_")[0],
                 policies_to_train=["market_maker", "momentum_trader", "arbitrageur"],
             )
             .debugging(

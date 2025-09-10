@@ -77,6 +77,14 @@ class MultiAgentTradingEnv(MultiAgentEnv):
         # Required attributes for Ray 2.49.1 multi-agent environments
         self.agents = self.agent_ids  # Currently active agents
         self.possible_agents = self.agent_ids  # All possible agents
+    
+    def get_action_space(self, agent_id: str):
+        """Get action space for a specific agent."""
+        return self.action_space[agent_id]
+    
+    def get_observation_space(self, agent_id: str):
+        """Get observation space for a specific agent."""
+        return self.observation_space[agent_id]
         
     def reset(self, *, seed: Optional[int] = None, options: Optional[Dict] = None):
         """
@@ -86,7 +94,7 @@ class MultiAgentTradingEnv(MultiAgentEnv):
             Dictionary mapping agent IDs to their initial observations
         """
         # Reset the underlying single-agent environment
-        single_obs, info = self.env.reset(seed=seed, options=options)n single
+        single_obs, info = self.env.reset(seed=seed, options=options)
         self.episode_count += 1
         
         # Initialize episode rewards
