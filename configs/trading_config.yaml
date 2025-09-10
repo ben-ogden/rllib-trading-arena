@@ -1,0 +1,92 @@
+# Multi-Agent Trading Environment Configuration
+
+# Market Configuration
+market:
+  initial_price: 100.0
+  volatility: 0.02
+  liquidity_factor: 0.1
+  spread_min: 0.01
+  spread_max: 0.05
+  order_book_depth: 10
+  tick_size: 0.01
+  market_hours: 252  # Trading days per year
+  sessions_per_day: 1
+
+# Agent Configurations
+agents:
+  market_maker:
+    count: 2
+    initial_capital: 100000
+    risk_tolerance: 0.1
+    inventory_target: 0
+    max_inventory: 1000
+    min_spread: 0.02
+    
+  momentum_trader:
+    count: 2
+    initial_capital: 100000
+    risk_tolerance: 0.15
+    lookback_period: 20
+    momentum_threshold: 0.05
+    
+  arbitrageur:
+    count: 1
+    initial_capital: 100000
+    risk_tolerance: 0.05
+    max_position_size: 500
+    profit_threshold: 0.01
+
+# Training Configuration
+training:
+  episodes: 1000
+  max_steps_per_episode: 1000
+  learning_rate: 0.0003
+  batch_size: 32
+  buffer_size: 10000
+  gamma: 0.99
+  tau: 0.005
+  
+# Algorithm Configuration
+algorithms:
+  ppo:
+    clip_param: 0.2
+    vf_clip_param: 10.0
+    entropy_coeff: 0.01
+    train_batch_size: 4000
+    sgd_minibatch_size: 128
+    num_sgd_iter: 10
+    
+  a3c:
+    sample_batch_size: 20
+    train_batch_size: 100
+    sgd_minibatch_size: 32
+    num_sgd_iter: 4
+    
+  impala:
+    train_batch_size: 1000
+    sgd_minibatch_size: 64
+    num_sgd_iter: 8
+
+# Distributed Training Configuration
+distributed:
+  num_workers: 4
+  num_cpus_per_worker: 1
+  num_gpus: 0
+  use_gpu: false
+  
+# Anyscale Cloud Configuration
+anyscale:
+  cluster_name: "rllib-trading-demo"
+  min_workers: 2
+  max_workers: 8
+  instance_type: "m5.large"
+  region: "us-west-2"
+  
+# Monitoring Configuration
+monitoring:
+  log_level: "INFO"
+  metrics_interval: 100
+  checkpoint_frequency: 50
+  tensorboard: true
+  wandb: false
+
