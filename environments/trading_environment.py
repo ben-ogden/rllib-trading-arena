@@ -69,16 +69,16 @@ class TradingEnvironment(gym.Env):
             event_probability=self.market_config.get("event_probability", 0.05)
         )
         
-        # Agent management
-        self.agents: Dict[str, AgentState] = {}
-        self.agent_types: List[str] = []
-        self._initialize_agents()
-        
         # Environment state
         self.current_step = 0
         self.max_steps = config.get("max_steps_per_episode", 1000)
         self.episode_rewards: Dict[str, List[float]] = {}
         self.episode_metrics: Dict[str, List[Dict]] = {}
+        
+        # Agent management
+        self.agents: Dict[str, AgentState] = {}
+        self.agent_types: List[str] = []
+        self._initialize_agents()
         
         # Action and observation spaces
         self._setup_spaces()
@@ -426,7 +426,7 @@ class TradingEnvironment(gym.Env):
                 market_conditions["volatility"] * 100,  # Volatility
                 market_conditions["liquidity"],
                 market_conditions["volume"] / 10000.0,  # Normalized volume
-                market_data.get("spread", 0.0) / 100.0,  # Normalized spread
+                (market_data.get("spread") or 0.0) / 100.0,  # Normalized spread
                 len(market_data.get("buy_depth", [])),  # Buy depth
                 float(market_conditions["event"] != "normal")  # Event indicator
             ], dtype=np.float32)

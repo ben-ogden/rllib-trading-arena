@@ -53,19 +53,19 @@ algorithms:
     vf_clip_param: 10.0
     entropy_coeff: 0.01
     train_batch_size: 4000
-    sgd_minibatch_size: 128
-    num_sgd_iter: 10
+    mini_batch_size_per_learner: 128
+    num_epochs: 10
     
   a3c:
     sample_batch_size: 20
     train_batch_size: 100
-    sgd_minibatch_size: 32
-    num_sgd_iter: 4
+    mini_batch_size_per_learner: 32
+    num_epochs: 4
     
   impala:
     train_batch_size: 1000
-    sgd_minibatch_size: 64
-    num_sgd_iter: 8
+    mini_batch_size_per_learner: 64
+    num_epochs: 8
 
 # Distributed Training Configuration
 distributed:

@@ -77,22 +77,24 @@ def run_single_agent_demo():
                 lr=config["training"]["learning_rate"],
                 train_batch_size=config["training"]["batch_size"],
                 gamma=config["training"]["gamma"],
-                sgd_minibatch_size=32,
-                num_sgd_iter=10,
+                num_epochs=10,
                 clip_param=0.2,
                 vf_clip_param=10.0,
                 entropy_coeff=0.01,
             )
-            .rollouts(
-                num_rollout_workers=config["distributed"]["num_workers"],
-                num_cpus_per_worker=config["distributed"]["num_cpus_per_worker"],
-                rollout_fragment_length=200,
+            .env_runners(
+                num_env_runners=config["distributed"]["num_workers"],
+                num_cpus_per_env_runner=config["distributed"]["num_cpus_per_worker"],
+                rollout_fragment_length="auto",
             )
             .resources(
                 num_gpus=config["distributed"]["num_gpus"],
             )
             .debugging(
                 log_level="INFO",
+            )
+            .experimental(
+                _validate_config=False
             )
         )
         
