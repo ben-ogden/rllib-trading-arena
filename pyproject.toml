@@ -3,7 +3,7 @@ name = "rllib-trading-arena"
 version = "0.1.0"
 description = "🏟️ A competitive multi-agent trading arena showcasing RLlib's latest capabilities with Ray 2.49.1 and Anyscale Cloud"
 authors = [
-    {name = "RLlib Demo Team", email = "demo@anyscale.com"}
+    {name = "RLlib Demo Team", email = "ben@anyscale.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.11"

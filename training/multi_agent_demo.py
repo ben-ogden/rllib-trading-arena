@@ -10,6 +10,7 @@ import ray
 import numpy as np
 import yaml
 import logging
+import os
 from pathlib import Path
 
 from ray.rllib.algorithms.ppo import PPOConfig
@@ -118,7 +119,7 @@ def run_multi_agent_demo():
         )
         
         # Build the algorithm
-        trainer = ppo_config.build()
+        trainer = ppo_config.build_algo()
         
         logger.info("Starting multi-agent training...")
         logger.info(f"Agent types: {list(config['agents'].keys())}")

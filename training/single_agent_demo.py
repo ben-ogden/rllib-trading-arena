@@ -6,11 +6,25 @@ A simplified demo script that showcases RLlib's capabilities with a single
 trading agent. This is perfect for quick demonstrations and testing.
 """
 
+import os
+import warnings
+from pathlib import Path
+
+# Set environment variables BEFORE importing Ray
+os.environ["PYTHONWARNINGS"] = "ignore::DeprecationWarning"
+os.environ["RAY_PYTHON"] = "/Users/ben/github/rllib-hackathon/.venv/bin/python"
+
+# Suppress specific Ray deprecation warnings
+warnings.filterwarnings("ignore", message=".*UnifiedLogger.*", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*RLModule.*", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*JsonLogger.*", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*CSVLogger.*", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*TBXLogger.*", category=DeprecationWarning)
+
 import ray
 import numpy as np
 import yaml
 import logging
-from pathlib import Path
 
 from ray.rllib.algorithms.ppo import PPOConfig
 from environments.trading_environment import TradingEnvironment
@@ -57,12 +71,37 @@ def run_single_agent_demo():
     logger.info("Starting Single Agent Trading Demo")
     logger.info("=" * 50)
     
-    # Initialize Ray
+    # Initialize Ray with dashboard
     ray.init(
         num_cpus=4,
         ignore_reinit_error=True,
-        logging_level=logging.INFO
+        logging_level=logging.WARNING,  
+        dashboard_host="127.0.0.1",
+        dashboard_port=8265,
+        include_dashboard=True,
+        runtime_env={
+            "working_dir": "/Users/ben/github/rllib-hackathon",
+            "py_modules": ["/Users/ben/github/rllib-hackathon"]
+        }
     )
+    
+    # Print dashboard URL and check if it's running
+    dashboard_url = "http://127.0.0.1:8265"
+    logger.info(f"Ray Dashboard available at: {dashboard_url}")
+    
+    # Check if dashboard is actually running
+    import time
+    time.sleep(2)  # Give Ray time to start the dashboard
+    try:
+        import requests
+        response = requests.get(dashboard_url, timeout=5)
+        if response.status_code == 200:
+            logger.info("✅ Ray Dashboard is running and accessible!")
+        else:
+            logger.warning(f"⚠️  Dashboard returned status code: {response.status_code}")
+    except Exception as e:
+        logger.warning(f"⚠️  Could not access dashboard: {e}")
+        logger.info("Try opening the dashboard manually in your browser")
     
     try:
         # Create configuration
@@ -73,6 +112,10 @@ def run_single_agent_demo():
             PPOConfig()
             .environment(TradingEnvironment, env_config=config)
             .framework("torch")
+            .api_stack(
+                enable_rl_module_and_learner=True,
+                enable_env_runner_and_connector_v2=True
+            )
             .training(
                 lr=config["training"]["learning_rate"],
                 train_batch_size=config["training"]["batch_size"],
@@ -81,6 +124,7 @@ def run_single_agent_demo():
                 clip_param=0.2,
                 vf_clip_param=10.0,
                 entropy_coeff=0.01,
+                minibatch_size=32,  # Fix the minibatch size warning
             )
             .env_runners(
                 num_env_runners=config["distributed"]["num_workers"],
@@ -91,7 +135,11 @@ def run_single_agent_demo():
                 num_gpus=config["distributed"]["num_gpus"],
             )
             .debugging(
-                log_level="INFO",
+                log_level="WARNING",  # Reduce log verbosity
+            )
+            .callbacks(
+                # Use new logging callbacks instead of deprecated UnifiedLogger
+                callbacks_class=None,
             )
             .experimental(
                 _validate_config=False
@@ -99,7 +147,7 @@ def run_single_agent_demo():
         )
         
         # Build the algorithm
-        trainer = ppo_config.build()
+        trainer = ppo_config.build_algo()
         
         logger.info("Starting training...")
         
@@ -109,12 +157,23 @@ def run_single_agent_demo():
             
             if i % 10 == 0:
                 logger.info(f"Iteration {i}:")
-                logger.info(f"  Episode reward mean: {result['episode_reward_mean']:.2f}")
-                logger.info(f"  Episode length mean: {result['episode_len_mean']:.2f}")
-                logger.info(f"  Policy loss: {result['info']['learner']['default_policy']['policy_loss']:.4f}")
+                # Handle different result key structures in Ray 2.49.1
+                episode_reward = result.get('episode_reward_mean', result.get('env_runners', {}).get('episode_reward_mean', 0.0))
+                episode_length = result.get('episode_len_mean', result.get('env_runners', {}).get('episode_len_mean', 0.0))
+                logger.info(f"  Episode reward mean: {episode_reward:.2f}")
+                logger.info(f"  Episode length mean: {episode_length:.2f}")
+                
+                # Try to get policy loss with fallback
+                try:
+                    policy_loss = result['info']['learner']['default_policy']['policy_loss']
+                    logger.info(f"  Policy loss: {policy_loss:.4f}")
+                except (KeyError, TypeError):
+                    logger.info(f"  Policy loss: N/A (structure changed in Ray 2.49.1)")
         
         # Save the trained model
-        checkpoint_path = trainer.save("checkpoints/single_agent_demo")
+        import os
+        checkpoint_dir = os.path.abspath("checkpoints/single_agent_demo")
+        checkpoint_path = trainer.save(checkpoint_dir)
         logger.info(f"Model saved to: {checkpoint_path}")
         
         # Quick evaluation
@@ -128,7 +187,13 @@ def run_single_agent_demo():
             step = 0
             
             while step < 200:  # Limit evaluation steps
-                action = trainer.compute_single_action(obs)
+                # Use the new API for getting actions
+                import torch
+                module = trainer.get_module("default_policy")
+                obs_tensor = torch.tensor(obs.reshape(1, -1), dtype=torch.float32)
+                action = module.forward_inference({"obs": obs_tensor})["action_dist_inputs"]
+                action = action.numpy().flatten()
+                
                 obs, reward, terminated, truncated, info = eval_env.step(action)
                 episode_reward += reward
                 step += 1

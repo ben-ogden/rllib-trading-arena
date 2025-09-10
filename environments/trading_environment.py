@@ -181,24 +181,35 @@ class TradingEnvironment(gym.Env):
         observations = self._get_observations()
         info = self._get_info()
         
-        return observations, info
+        # For single-agent mode, return the observation for the first agent
+        if len(observations) == 1:
+            agent_id = list(observations.keys())[0]
+            return observations[agent_id], info
+        else:
+            return observations, info
     
-    def step(self, actions: Dict[str, np.ndarray]) -> Tuple[Dict[str, np.ndarray], Dict[str, float], Dict[str, bool], Dict[str, bool], Dict[str, Any]]:
+    def step(self, actions) -> Tuple:
         """
         Execute one step of the environment.
         
         Args:
-            actions: Dictionary mapping agent IDs to their actions
+            actions: Dictionary mapping agent IDs to their actions (multi-agent) or single action array (single-agent)
             
         Returns:
             Tuple of (observations, rewards, terminated, truncated, info)
         """
         self.current_step += 1
         
-        # Process agent actions
-        for agent_id, action in actions.items():
-            if agent_id in self.agents:
-                self._process_agent_action(agent_id, action)
+        # Handle both single-agent and multi-agent modes
+        if isinstance(actions, dict):
+            # Multi-agent mode
+            for agent_id, action in actions.items():
+                if agent_id in self.agents:
+                    self._process_agent_action(agent_id, action)
+        else:
+            # Single-agent mode - actions is a numpy array
+            agent_id = list(self.agents.keys())[0]
+            self._process_agent_action(agent_id, actions)
         
         # Advance market simulation
         market_state = self.market_simulator.step()
@@ -217,7 +228,18 @@ class TradingEnvironment(gym.Env):
         observations = self._get_observations()
         info = self._get_info()
         
-        return observations, rewards, terminated, truncated, info
+        # For single-agent mode, return single values instead of dictionaries
+        if len(self.agents) == 1:
+            agent_id = list(self.agents.keys())[0]
+            return (
+                observations[agent_id],  # Single observation array
+                rewards[agent_id],       # Single reward value
+                terminated[agent_id],    # Single terminated bool
+                truncated,               # Single truncated bool
+                info                     # Info dict
+            )
+        else:
+            return observations, rewards, terminated, truncated, info
     
     def _process_agent_action(self, agent_id: str, action: np.ndarray):
         """Process an agent's action and update the order book."""
@@ -231,7 +253,7 @@ class TradingEnvironment(gym.Env):
         
         # Get current market conditions
         market_data = self.order_book.get_market_data()
-        mid_price = market_data.get("mid_price", self.market_simulator.current_price)
+        mid_price = market_data.get("mid_price") or self.market_simulator.current_price
         
         # Convert normalized values to actual values
         max_quantity = min(agent.cash / mid_price, 1000) if action_type == 1 else abs(agent.position)

@@ -412,7 +412,7 @@ class MultiAgentTrainer:
         config = self.create_algorithm_config(algorithm)
         
         # Build the algorithm
-        trainer = config.build()
+        trainer = config.build_algo()
         
         # Training loop
         results = []

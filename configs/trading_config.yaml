@@ -41,7 +41,7 @@ training:
   episodes: 1000
   max_steps_per_episode: 1000
   learning_rate: 0.0003
-  batch_size: 32
+  batch_size: 256
   buffer_size: 10000
   gamma: 0.99
   tau: 0.005
@@ -52,8 +52,8 @@ algorithms:
     clip_param: 0.2
     vf_clip_param: 10.0
     entropy_coeff: 0.01
-    train_batch_size: 4000
-    mini_batch_size_per_learner: 128
+    train_batch_size: 128
+    mini_batch_size_per_learner: 32
     num_epochs: 10
     
   a3c:
