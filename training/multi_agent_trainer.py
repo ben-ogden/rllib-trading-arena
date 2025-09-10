@@ -86,7 +86,7 @@ class MultiAgentTradingEnv(MultiAgentEnv):
             Dictionary mapping agent IDs to their initial observations
         """
         # Reset the underlying single-agent environment
-        single_obs, info = self.env.reset(seed=seed, options=options)
+        single_obs, info = self.env.reset(seed=seed, options=options)n single
         self.episode_count += 1
         
         # Initialize episode rewards

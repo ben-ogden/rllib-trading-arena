@@ -156,6 +156,9 @@ class TradingEnvironment(gym.Env):
         )
         self.market_simulator.reset()
         
+        # Add initial liquidity to the order book
+        self._add_initial_liquidity()
+        
         # Reset agent states
         for agent_id, agent in self.agents.items():
             agent_config = self.agents_config[agent.agent_type]
@@ -187,6 +190,43 @@ class TradingEnvironment(gym.Env):
             return observations[agent_id], info
         else:
             return observations, info
+    
+    def _add_initial_liquidity(self):
+        """Add initial liquidity to the order book to enable trading."""
+        current_price = self.market_simulator.current_price
+        tick_size = self.order_book.tick_size
+        
+        # Add some buy orders below current price
+        for i in range(5):
+            price = current_price - (i + 1) * tick_size * 10  # 10 ticks below
+            quantity = 100 + i * 50  # Varying quantities
+            
+            order = Order(
+                order_id=f"liquidity_buy_{i}",
+                agent_id="market_maker_liquidity",
+                side=OrderSide.BUY,
+                order_type=OrderType.LIMIT,
+                quantity=quantity,
+                price=price,
+                timestamp=time.time()
+            )
+            self.order_book.add_order(order)
+        
+        # Add some sell orders above current price
+        for i in range(5):
+            price = current_price + (i + 1) * tick_size * 10  # 10 ticks above
+            quantity = 100 + i * 50  # Varying quantities
+            
+            order = Order(
+                order_id=f"liquidity_sell_{i}",
+                agent_id="market_maker_liquidity",
+                side=OrderSide.SELL,
+                order_type=OrderType.LIMIT,
+                quantity=quantity,
+                price=price,
+                timestamp=time.time()
+            )
+            self.order_book.add_order(order)
     
     def step(self, actions) -> Tuple:
         """
@@ -368,23 +408,27 @@ class TradingEnvironment(gym.Env):
         self.total_trades += 1
         self.total_volume += trade.quantity
         
-        # Update buyer
-        buyer = self.agents[trade.buy_agent_id]
-        buyer.cash -= trade.quantity * trade.price
-        buyer.position += trade.quantity
-        buyer.total_trades += 1
+        # Update buyer (only if it's a real agent, not liquidity)
+        if trade.buy_agent_id != "market_maker_liquidity":
+            buyer = self.agents[trade.buy_agent_id]
+            buyer.cash -= trade.quantity * trade.price
+            buyer.position += trade.quantity
+            buyer.total_trades += 1
+            
+            # Remove filled orders from active orders
+            if trade.buy_order_id in buyer.active_orders:
+                buyer.active_orders.remove(trade.buy_order_id)
         
-        # Update seller
-        seller = self.agents[trade.sell_agent_id]
-        seller.cash += trade.quantity * trade.price
-        seller.position -= trade.quantity
-        seller.total_trades += 1
-        
-        # Remove filled orders from active orders
-        if trade.buy_order_id in buyer.active_orders:
-            buyer.active_orders.remove(trade.buy_order_id)
-        if trade.sell_order_id in seller.active_orders:
-            seller.active_orders.remove(trade.sell_order_id)
+        # Update seller (only if it's a real agent, not liquidity)
+        if trade.sell_agent_id != "market_maker_liquidity":
+            seller = self.agents[trade.sell_agent_id]
+            seller.cash += trade.quantity * trade.price
+            seller.position -= trade.quantity
+            seller.total_trades += 1
+            
+            # Remove filled orders from active orders
+            if trade.sell_order_id in seller.active_orders:
+                seller.active_orders.remove(trade.sell_order_id)
     
     def _calculate_rewards(self) -> Dict[str, float]:
         """Calculate rewards for all agents."""
@@ -405,9 +449,9 @@ class TradingEnvironment(gym.Env):
             # Trading cost penalty
             trading_penalty = -agent.total_trades * 0.01
             
-            # Market making bonus (for market makers)
+            # Market making bonus (for market makers who are actively making markets)
             market_making_bonus = 0.0
-            if agent.agent_type == "market_maker":
+            if agent.agent_type == "market_maker" and agent.total_trades > 0:
                 spread = self.order_book.get_spread()
                 if spread is not None and spread > 0:
                     market_making_bonus = spread * 0.1
