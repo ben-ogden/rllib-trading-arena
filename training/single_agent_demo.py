@@ -125,13 +125,13 @@ def run_single_agent_demo():
                 }
             )
             .training(
-                lr=config["training"]["learning_rate"],
+                lr=config["training"]["learning_rate"] * 2,  # Higher learning rate
                 train_batch_size=config["training"]["batch_size"],
                 gamma=config["training"]["gamma"],
-                num_epochs=10,
-                clip_param=0.2,
+                num_epochs=15,  # More epochs
+                clip_param=0.3,  # Slightly higher clip
                 vf_clip_param=10.0,
-                entropy_coeff=0.01,
+                entropy_coeff=0.05,  # Higher entropy for more exploration
                 minibatch_size=32,  # Fix the minibatch size warning
             )
             .env_runners(
@@ -160,7 +160,7 @@ def run_single_agent_demo():
         logger.info("Starting training...")
         
         # Training loop
-        for i in range(50):  # Reduced iterations for demo
+        for i in range(100):  # More iterations for better results  # Reduced iterations for demo
             result = trainer.train()
             
             if i % 10 == 0:
@@ -171,12 +171,7 @@ def run_single_agent_demo():
                 logger.info(f"  Episode reward mean: {episode_reward:.2f}")
                 logger.info(f"  Episode length mean: {episode_length:.2f}")
                 
-                # Try to get policy loss with fallback
-                try:
-                    policy_loss = result['info']['learner']['default_policy']['policy_loss']
-                    logger.info(f"  Policy loss: {policy_loss:.4f}")
-                except (KeyError, TypeError):
-                    logger.info(f"  Policy loss: N/A (structure changed in Ray 2.49.1)")
+                # Policy loss logging removed for cleaner output
         
         # Save the trained model
         import os

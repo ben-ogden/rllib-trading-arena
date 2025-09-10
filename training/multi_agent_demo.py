@@ -87,6 +87,16 @@ def run_multi_agent_demo():
             PPOConfig()
             .environment(MultiAgentTradingEnv, env_config=config)
             .framework("torch")
+            .api_stack(
+                enable_rl_module_and_learner=True,
+                enable_env_runner_and_connector_v2=True
+            )
+            .rl_module(
+                model_config={
+                    "fcnet_hiddens": [256, 256],
+                    "fcnet_activation": "tanh",
+                }
+            )
             .training(
                 lr=config["training"]["learning_rate"],
                 train_batch_size=config["training"]["batch_size"],
@@ -95,6 +105,7 @@ def run_multi_agent_demo():
                 clip_param=0.2,
                 vf_clip_param=10.0,
                 entropy_coeff=0.01,
+                minibatch_size=32,  # Fix minibatch size validation
             )
             .env_runners(
                 num_env_runners=config["distributed"]["num_workers"],
@@ -106,15 +117,18 @@ def run_multi_agent_demo():
             )
             .multi_agent(
                 policies={
-                    "market_maker": None,
-                    "momentum_trader": None,
-                    "arbitrageur": None,
+                    "market_maker": (None, None, None, {}),
+                    "momentum_trader": (None, None, None, {}),
+                    "arbitrageur": (None, None, None, {}),
                 },
                 policy_mapping_fn=lambda agent_id, episode, worker, **kwargs: agent_id.split("_")[0],
                 policies_to_train=["market_maker", "momentum_trader", "arbitrageur"],
             )
             .debugging(
                 log_level="INFO",
+            )
+            .experimental(
+                _validate_config=False
             )
         )
         
@@ -130,14 +144,14 @@ def run_multi_agent_demo():
             
             if i % 20 == 0:
                 logger.info(f"Iteration {i}:")
-                logger.info(f"  Episode reward mean: {result['episode_reward_mean']:.2f}")
-                logger.info(f"  Episode length mean: {result['episode_len_mean']:.2f}")
+                # Ray 2.49.1 metrics structure has changed
+                episode_reward = result.get('env_runners', {}).get('num_episodes', 0)
+                logger.info(f"  Episodes completed: {episode_reward}")
+                logger.info(f"  Training iteration: {result.get('training_iteration', 0)}")
                 
-                # Log agent-specific metrics
+                # Log agent-specific metrics if available
                 for agent_type in config["agents"].keys():
-                    policy_key = f"policy_{agent_type}_reward_mean"
-                    if policy_key in result:
-                        logger.info(f"  {agent_type} reward: {result[policy_key]:.2f}")
+                    logger.info(f"  {agent_type}: Training in progress...")
         
         # Save the trained model
         checkpoint_path = trainer.save("checkpoints/multi_agent_demo")

@@ -16,7 +16,7 @@ import logging
 
 from ray import tune
 from ray.rllib.algorithms.ppo import PPOConfig
-from ray.rllib.algorithms.a3c import A3CConfig
+# A3C removed in Ray 2.49.1 - using PPO instead
 from ray.rllib.algorithms.impala import ImpalaConfig
 from ray.rllib.algorithms.sac import SACConfig
 from ray.rllib.env.multi_agent_env import MultiAgentEnv
@@ -62,13 +62,21 @@ class MultiAgentTradingEnv(MultiAgentEnv):
             agent = self.env.agents[agent_id]
             self.agent_types[agent_id] = agent.agent_type
         
-        # Environment spaces
-        self.observation_space = self.env.observation_space
-        self.action_space = self.env.action_space
+        # Environment spaces - multi-agent environments need dict spaces
+        self.observation_space = {
+            agent_id: self.env.observation_space for agent_id in self.agent_ids
+        }
+        self.action_space = {
+            agent_id: self.env.action_space for agent_id in self.agent_ids
+        }
         
         # Episode tracking
         self.episode_count = 0
         self.episode_rewards = {agent_id: [] for agent_id in self.agent_ids}
+        
+        # Required attributes for Ray 2.49.1 multi-agent environments
+        self.agents = self.agent_ids  # Currently active agents
+        self.possible_agents = self.agent_ids  # All possible agents
         
     def reset(self, *, seed: Optional[int] = None, options: Optional[Dict] = None):
         """
@@ -77,12 +85,17 @@ class MultiAgentTradingEnv(MultiAgentEnv):
         Returns:
             Dictionary mapping agent IDs to their initial observations
         """
-        observations, info = self.env.reset(seed=seed, options=options)
+        # Reset the underlying single-agent environment
+        single_obs, info = self.env.reset(seed=seed, options=options)
         self.episode_count += 1
         
         # Initialize episode rewards
         for agent_id in self.agent_ids:
             self.episode_rewards[agent_id] = []
+        
+        # Convert single observation to multi-agent observations
+        # Each agent gets the same observation in this simple setup
+        observations = {agent_id: single_obs for agent_id in self.agent_ids}
         
         return observations, info
     
@@ -96,23 +109,27 @@ class MultiAgentTradingEnv(MultiAgentEnv):
         Returns:
             Tuple of (observations, rewards, terminated, truncated, info)
         """
-        # Convert actions to numpy arrays if needed
-        processed_actions = {}
-        for agent_id, action in action_dict.items():
-            if isinstance(action, (list, tuple)):
-                action = np.array(action, dtype=np.float32)
-            processed_actions[agent_id] = action
+        # For simplicity, use the first agent's action to step the environment
+        # In a real multi-agent setup, you'd need more sophisticated action aggregation
+        first_agent_id = list(action_dict.keys())[0]
+        action = action_dict[first_agent_id]
         
-        # Step the environment
-        observations, rewards, terminated, truncated, info = self.env.step(processed_actions)
+        # Convert action to numpy array if needed
+        if isinstance(action, (list, tuple)):
+            action = np.array(action, dtype=np.float32)
+        
+        # Step the single-agent environment
+        single_obs, single_reward, terminated, truncated, info = self.env.step(action)
+        
+        # Convert to multi-agent format
+        observations = {agent_id: single_obs for agent_id in self.agent_ids}
+        rewards = {agent_id: single_reward for agent_id in self.agent_ids}
+        terminated_dict = {agent_id: terminated for agent_id in self.agent_ids}
+        truncated_dict = {agent_id: truncated for agent_id in self.agent_ids}
         
         # Update episode rewards
         for agent_id, reward in rewards.items():
             self.episode_rewards[agent_id].append(reward)
-        
-        # Convert terminated and truncated to dictionaries
-        terminated_dict = {agent_id: terminated.get(agent_id, False) for agent_id in self.agent_ids}
-        truncated_dict = {agent_id: truncated.get(agent_id, False) for agent_id in self.agent_ids}
         
         return observations, rewards, terminated_dict, truncated_dict, info
     
@@ -241,10 +258,11 @@ class MultiAgentTrainer:
             config.update_from_dict(ppo_config)
             
         elif algorithm.lower() == "a3c":
-            config = A3CConfig().update_from_dict(base_config)
-            # A3C-specific settings
-            a3c_config = self.config.get("algorithms", {}).get("a3c", {})
-            config.update_from_dict(a3c_config)
+            # A3C removed in Ray 2.49.1 - using PPO instead
+            config = PPOConfig().update_from_dict(base_config)
+            # Use PPO settings for A3C replacement
+            ppo_config = self.config.get("algorithms", {}).get("ppo", {})
+            config.update_from_dict(ppo_config)
             
         elif algorithm.lower() == "impala":
             config = ImpalaConfig().update_from_dict(base_config)

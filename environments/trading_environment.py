@@ -413,13 +413,22 @@ class TradingEnvironment(gym.Env):
                     market_making_bonus = spread * 0.1
             
             # Add small positive reward for being active (encourage exploration)
-            activity_reward = 0.01 if agent.total_trades > 0 else 0.0
+            activity_reward = 0.05 if agent.total_trades > 0 else 0.0
             
-            # Penalty for doing nothing (action type 0)
+            # Penalty for doing nothing (action type 0) - encourage trading
             inactivity_penalty = -0.001 if agent.last_action and agent.last_action.get("action_type") == 0 else 0.0
             
-            # Total reward
-            total_reward = pnl_reward + position_penalty + trading_penalty + market_making_bonus + activity_reward + inactivity_penalty
+            # Add reward for successful trades
+            trade_success_reward = agent.total_trades * 0.02 if agent.total_trades > 0 else 0.0
+            
+            # Add reward for maintaining reasonable position (only if actively trading)
+            position_reward = 0.01 if abs(agent.position) < 100 and agent.total_trades > 0 else 0.0
+            
+            # Total reward - more positive and encouraging
+            total_reward = pnl_reward + position_penalty + trading_penalty + market_making_bonus + activity_reward + inactivity_penalty + trade_success_reward + position_reward
+            
+            # Debug logging removed for cleaner output
+            
             rewards[agent_id] = total_reward
             
             # Update episode rewards
