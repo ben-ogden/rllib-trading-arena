@@ -281,6 +281,10 @@ class TradingEnvironment(gym.Env):
             "price": actual_price,
             "order_type": order_type
         }
+        
+        # Debug: Print action details occasionally
+        if self.current_step % 100 == 0:
+            print(f"Step {self.current_step}: Agent {agent_id} action: type={action_type}, qty={actual_quantity:.2f}, price={actual_price}, trades={agent.total_trades}")
     
     def _place_buy_order(self, agent_id: str, quantity: float, price: Optional[float]):
         """Place a buy order for an agent."""
@@ -390,7 +394,7 @@ class TradingEnvironment(gym.Env):
             # Calculate current PnL
             current_price = self.market_simulator.current_price
             unrealized_pnl = agent.position * current_price
-            total_pnl = agent.cash + unrealized_pnl - agent.cash  # Simplified
+            total_pnl = agent.cash + unrealized_pnl - 100000  # Subtract initial capital
             
             # Reward components
             pnl_reward = total_pnl / 1000.0  # Normalize
@@ -408,8 +412,14 @@ class TradingEnvironment(gym.Env):
                 if spread is not None and spread > 0:
                     market_making_bonus = spread * 0.1
             
+            # Add small positive reward for being active (encourage exploration)
+            activity_reward = 0.01 if agent.total_trades > 0 else 0.0
+            
+            # Penalty for doing nothing (action type 0)
+            inactivity_penalty = -0.001 if agent.last_action and agent.last_action.get("action_type") == 0 else 0.0
+            
             # Total reward
-            total_reward = pnl_reward + position_penalty + trading_penalty + market_making_bonus
+            total_reward = pnl_reward + position_penalty + trading_penalty + market_making_bonus + activity_reward + inactivity_penalty
             rewards[agent_id] = total_reward
             
             # Update episode rewards

@@ -91,15 +91,15 @@ class TradingDashboard:
         data = {
             "training_progress": {
                 "iterations": list(range(iterations)),
-                "episode_rewards": np.random.cumsum(np.random.normal(0.1, 0.5, iterations)),
+                "episode_rewards": np.cumsum(np.random.normal(0.1, 0.5, iterations)),
                 "episode_lengths": np.random.normal(200, 50, iterations),
                 "policy_losses": np.random.exponential(0.1, iterations),
             },
             "agent_performance": {
                 agent: {
-                    "rewards": np.random.cumsum(np.random.normal(0.05, 0.3, iterations)),
+                    "rewards": np.cumsum(np.random.normal(0.05, 0.3, iterations)),
                     "trades": np.random.poisson(10, iterations),
-                    "pnl": np.random.cumsum(np.random.normal(0.02, 0.2, iterations)),
+                    "pnl": np.cumsum(np.random.normal(0.02, 0.2, iterations)),
                 }
                 for agent in agents
             },

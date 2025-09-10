@@ -20,6 +20,8 @@ warnings.filterwarnings("ignore", message=".*RLModule.*", category=DeprecationWa
 warnings.filterwarnings("ignore", message=".*JsonLogger.*", category=DeprecationWarning)
 warnings.filterwarnings("ignore", message=".*CSVLogger.*", category=DeprecationWarning)
 warnings.filterwarnings("ignore", message=".*TBXLogger.*", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message=".*Ray 2.7.*", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="ray.*")
 
 import ray
 import numpy as np
@@ -115,6 +117,12 @@ def run_single_agent_demo():
             .api_stack(
                 enable_rl_module_and_learner=True,
                 enable_env_runner_and_connector_v2=True
+            )
+            .rl_module(
+                model_config={
+                    "fcnet_hiddens": [256, 256],
+                    "fcnet_activation": "tanh",
+                }
             )
             .training(
                 lr=config["training"]["learning_rate"],
