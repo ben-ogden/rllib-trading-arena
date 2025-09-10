@@ -24,7 +24,7 @@
 
 ## 🎯 Demo Scenarios
 
-1. **Single Agent Training**: Train individual trading strategies
+1. **Single Agent Training & Evaluation**: Train and evaluate individual trading strategies
 2. **Multi-Agent Competition**: Competing agents in the same market
 3. **Cooperative Trading**: Agents working together for optimal market making
 4. **Scalability Demo**: Show distributed training across multiple nodes
@@ -40,29 +40,34 @@
    uv sync
    ```
 
-2. **Run Single Agent Demo** (5 minutes):
+2. **Train Single Agent** (5-10 minutes):
    ```bash
    uv run python training/single_agent_demo.py
    ```
 
-3. **Run Multi-Agent Demo** (15 minutes):
+3. **Evaluate Trained Agent** (2-3 minutes):
+   ```bash
+   uv run python training/single_agent_evaluation.py
+   ```
+
+4. **Run Multi-Agent Demo** (15 minutes):
    ```bash
    uv run python training/multi_agent_demo.py
    ```
 
-4. **Launch Interactive Dashboard**:
+5. **Launch Interactive Dashboard**:
    ```bash
    uv run streamlit run dashboard/trading_dashboard.py
    ```
 
-5. **Alternative: Use CLI commands**:
+6. **Alternative: Use CLI commands**:
    ```bash
    uv run rllib-trading-arena --help
    uv run rllib-trading-arena train --algorithm ppo --iterations 100
    uv run trading-dashboard
    ```
 
-6. **For detailed instructions, see [DEMO_GUIDE.md](DEMO_GUIDE.md)**
+7. **For detailed instructions, troubleshooting, and advanced usage, see [DEMO_GUIDE.md](DEMO_GUIDE.md)**
 
 ## 🌟 Key RLlib Features Demonstrated
 
@@ -74,6 +79,25 @@
 - **Anyscale Integration**: Cloud-native deployment with latest Ray features
 - **New API Stack**: Leverages RLlib's latest modular architecture (alpha features)
 - **Enhanced Performance**: Improved training speed and memory efficiency
+- **Separate Evaluation**: Dedicated evaluation scripts for comprehensive agent testing
+
+## 🎯 Evaluation Capabilities
+
+The project includes comprehensive evaluation tools:
+
+- **`single_agent_evaluation.py`**: Detailed evaluation of trained single agents
+  - Shows diverse trading behavior (BUY, SELL, HOLD, CANCEL)
+  - Performance analysis with P&L tracking
+  - Action distribution analysis
+  - Risk management assessment
+  - Realistic trading simulation with proper stochastic sampling
+
+- **Performance Metrics**:
+  - Average reward and standard deviation
+  - Trading frequency and success rate
+  - Profit/Loss analysis
+  - Action distribution breakdown
+  - Episode-by-episode performance comparison
 
 ## 📊 Performance Metrics
 
@@ -84,27 +108,15 @@
 
 ## 🔧 Configuration
 
-The demo supports various configuration options:
-- Market parameters (volatility, liquidity, etc.)
-- Agent behavior parameters
-- Training hyperparameters
-- Distributed computing settings
+The demo supports various configuration options. See [DEMO_GUIDE.md](DEMO_GUIDE.md) for detailed configuration examples and options.
 
 ## 🌐 Anyscale Cloud Deployment
 
-This demo is optimized for Anyscale Cloud with:
-- Pre-configured cluster settings
-- Cloud storage integration
-- Automatic scaling
-- Cost optimization
+This demo is optimized for Anyscale Cloud deployment. See [DEMO_GUIDE.md](DEMO_GUIDE.md) for detailed deployment instructions and cloud benefits.
 
 ## 📈 Results and Insights
 
-The demo showcases:
-- How different RL algorithms perform in financial markets
-- The benefits of multi-agent systems
-- Scalability advantages of distributed RL training
-- Real-world applicability of RLlib in finance
+The demo showcases RLlib's capabilities in financial markets. See [DEMO_GUIDE.md](DEMO_GUIDE.md) for detailed results analysis and performance insights.
 
 ## 🤝 Contributing
 

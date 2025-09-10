@@ -440,14 +440,14 @@ class TradingEnvironment(gym.Env):
             unrealized_pnl = agent.position * current_price
             total_pnl = agent.cash + unrealized_pnl - 100000  # Subtract initial capital
             
-            # Reward components
-            pnl_reward = total_pnl / 1000.0  # Normalize
+            # Base reward components
+            pnl_reward = total_pnl / 10000.0  # Normalize (smaller denominator for more meaningful rewards)
             
             # Risk penalty (penalize large positions)
-            position_penalty = -(abs(agent.position) / 1000.0) ** 2
+            position_penalty = -(abs(agent.position) / 1000.0) ** 2 * 0.1  # Reduced penalty
             
-            # Trading cost penalty
-            trading_penalty = -agent.total_trades * 0.01
+            # Trading cost penalty (reduced)
+            trading_penalty = -agent.total_trades * 0.001  # Much smaller penalty
             
             # Market making bonus (for market makers who are actively making markets)
             market_making_bonus = 0.0
@@ -456,22 +456,33 @@ class TradingEnvironment(gym.Env):
                 if spread is not None and spread > 0:
                     market_making_bonus = spread * 0.1
             
-            # Add small positive reward for being active (encourage exploration)
-            activity_reward = 0.05 if agent.total_trades > 0 else 0.0
+            # EXPLORATION REWARDS - Key changes to encourage learning
+            # Reward for placing orders (even if not filled)
+            order_placement_reward = 0.01 if agent.last_action and agent.last_action.get("action_type") in [1, 2] else 0.0
             
-            # Penalty for doing nothing (action type 0) - encourage trading
-            inactivity_penalty = -0.001 if agent.last_action and agent.last_action.get("action_type") == 0 else 0.0
+            # Reward for being active (placing any non-hold action)
+            activity_reward = 0.005 if agent.last_action and agent.last_action.get("action_type") != 0 else 0.0
             
-            # Add reward for successful trades
-            trade_success_reward = agent.total_trades * 0.02 if agent.total_trades > 0 else 0.0
+            # Small penalty for doing nothing (action type 0) - encourage trading
+            inactivity_penalty = -0.002 if agent.last_action and agent.last_action.get("action_type") == 0 else 0.0
             
-            # Add reward for maintaining reasonable position (only if actively trading)
-            position_reward = 0.01 if abs(agent.position) < 100 and agent.total_trades > 0 else 0.0
+            # Reward for successful trades (increased)
+            trade_success_reward = agent.total_trades * 0.1 if agent.total_trades > 0 else 0.0
             
-            # Total reward - more positive and encouraging
-            total_reward = pnl_reward + position_penalty + trading_penalty + market_making_bonus + activity_reward + inactivity_penalty + trade_success_reward + position_reward
+            # Reward for maintaining reasonable position
+            position_reward = 0.02 if abs(agent.position) < 100 else 0.0
             
-            # Debug logging removed for cleaner output
+            # Reward for having active orders (market making behavior)
+            active_orders_reward = len(agent.active_orders) * 0.001 if len(agent.active_orders) > 0 else 0.0
+            
+            # Total reward - more encouraging for exploration
+            total_reward = (pnl_reward + position_penalty + trading_penalty + market_making_bonus + 
+                          activity_reward + inactivity_penalty + trade_success_reward + 
+                          position_reward + order_placement_reward + active_orders_reward)
+            
+            # Ensure minimum reward to encourage exploration
+            if total_reward == 0.0 and agent.last_action and agent.last_action.get("action_type") != 0:
+                total_reward = 0.001  # Small positive reward for any non-hold action
             
             rewards[agent_id] = total_reward
             

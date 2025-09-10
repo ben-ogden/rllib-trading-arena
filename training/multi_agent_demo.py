@@ -14,6 +14,8 @@ import os
 from pathlib import Path
 
 from ray.rllib.algorithms.ppo import PPOConfig
+from ray.tune.logger import JsonLoggerCallback, CSVLoggerCallback, TBXLoggerCallback
+from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 from training.multi_agent_trainer import MultiAgentTradingEnv
 
 # Configure logging
@@ -92,10 +94,12 @@ def run_multi_agent_demo():
                 enable_env_runner_and_connector_v2=True
             )
             .rl_module(
-                model_config={
-                    "fcnet_hiddens": [256, 256],
-                    "fcnet_activation": "tanh",
-                }
+                rl_module_spec=RLModuleSpec(
+                    model_config={
+                        "fcnet_hiddens": [256, 256],
+                        "fcnet_activation": "tanh",
+                    }
+                )
             )
             .training(
                 lr=config["training"]["learning_rate"],
@@ -127,12 +131,13 @@ def run_multi_agent_demo():
             .debugging(
                 log_level="INFO",
             )
+            .callbacks(None)
             .experimental(
                 _validate_config=False
             )
         )
         
-        # Build the algorithm
+        # Build the algorithm using the new API stack
         trainer = ppo_config.build_algo()
         
         logger.info("Starting multi-agent training...")

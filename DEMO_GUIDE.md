@@ -17,7 +17,7 @@ This comprehensive guide will walk you through the RLlib Trading Arena, showcasi
 - **Agent Diversity**: Market makers, momentum traders, arbitrageurs
 - **Performance Metrics**: P&L, trading activity, market efficiency
 
-## 🚀 Quick Start (5 Minutes)
+## 🚀 Quick Start (15-20 Minutes)
 
 ### 1. Install Dependencies
 ```bash
@@ -28,28 +28,54 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync
 ```
 
-### 2. Run Single Agent Demo
+### 2. Train Single Agent
 ```bash
 uv run python training/single_agent_demo.py
 ```
 
-### 3. Launch Dashboard
+### 3. Evaluate Trained Agent
+```bash
+uv run python training/single_agent_evaluation.py
+```
+
+### 4. Run Multi-Agent Demo
+```bash
+uv run python training/multi_agent_demo.py
+```
+
+### 5. Launch Dashboard
 ```bash
 uv run streamlit run dashboard/trading_dashboard.py
 ```
 
 ## 📊 Demo Scenarios
 
-### Scenario 1: Single Agent Training
+### Scenario 1: Single Agent Training & Evaluation
 **Purpose**: Demonstrate basic RLlib training with a market maker agent
-**Duration**: 5-10 minutes
-**Command**: `uv run python training/single_agent_demo.py`
+**Duration**: 7-13 minutes (training + evaluation)
 
-**What You'll See**:
-- PPO training on a market maker agent
-- Real-time training metrics
-- Agent learning to provide liquidity
-- Performance evaluation
+**Step 1 - Training**:
+- **Command**: `uv run python training/single_agent_demo.py`
+- **Duration**: 5-10 minutes
+- **What You'll See**:
+  - PPO training on a market maker agent
+  - Real-time training metrics
+  - Agent learning to provide liquidity
+  - Model saved to `checkpoints/single_agent_demo/`
+
+**Step 2 - Evaluation**:
+- **Command**: `uv run python training/single_agent_evaluation.py`
+- **Duration**: 2-3 minutes
+- **What You'll See**:
+  - Trained agent demonstrating trading strategies
+  - Diverse action distribution (BUY, SELL, HOLD, CANCEL)
+  - Performance analysis with P&L tracking
+  - Real trading behavior with risk management
+  - Step-by-step decision making with market price updates
+  - Episode-by-episode performance comparison
+  - Action distribution analysis (e.g., 65% HOLD, 17% CANCEL, 12% BUY, 5% SELL)
+  - Profit/Loss tracking with realistic trading results
+  - Risk management demonstration through order cancellation
 
 ### Scenario 2: Multi-Agent Competition
 **Purpose**: Showcase multi-agent RL with competing strategies
@@ -260,6 +286,36 @@ config = {
 - [Cloud Deployment Guide](https://docs.anyscale.com/)
 - [Best Practices](https://docs.anyscale.com/best-practices/)
 
+## 📈 Understanding Evaluation Results
+
+### What to Look For in Single Agent Evaluation
+
+**Good Performance Indicators**:
+- **Diverse Actions**: Agent should use all action types (BUY, SELL, HOLD, CANCEL)
+- **Risk Management**: High CANCEL percentage shows good risk management
+- **Trading Activity**: Some BUY/SELL actions indicate active market making
+- **Profitability**: Positive P&L in some episodes shows learning
+- **Consistency**: Reasonable standard deviation in rewards
+
+**Example Good Results**:
+```
+Action Distribution:
+  HOLD  : 655 ( 65.5%)  # Reasonable - not all actions need trades
+  CANCEL: 172 ( 17.2%)  # Good risk management
+  BUY   : 121 ( 12.1%)  # Active market making
+  SELL  :  52 (  5.2%)  # Profit taking
+
+Trading Performance:
+  Profitable Episodes: 2/5 (40.0%)  # Some success
+  Average Profit/Episode: $ 6600.36  # Positive average
+```
+
+**Red Flags**:
+- 100% HOLD actions (agent not learning)
+- 0% CANCEL actions (poor risk management)
+- Consistently negative P&L (poor strategy)
+- Very high standard deviation (unstable learning)
+
 ## 🎉 Next Steps
 
 ### Extend the Demo
@@ -273,20 +329,3 @@ config = {
 2. **Monitoring**: Set up comprehensive monitoring and alerting
 3. **CI/CD**: Automate training and deployment pipelines
 4. **Scaling**: Handle production-scale workloads
-
-## 🤝 Contributing
-
-This demo is designed to be extended and customized. Feel free to:
-- Add new trading strategies
-- Implement additional market features
-- Improve the dashboard
-- Optimize performance
-- Add more algorithms
-
-## 📄 License
-
-MIT License - See LICENSE file for details.
-
----
-
-**Ready to showcase RLlib's capabilities? Start with the Quick Start guide and explore the different demo scenarios!**

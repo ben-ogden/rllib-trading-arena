@@ -13,6 +13,8 @@ import os
 from pathlib import Path
 import time
 import logging
+import gymnasium as gym
+import uuid
 
 from ray import tune
 from ray.rllib.algorithms.ppo import PPOConfig
@@ -24,6 +26,8 @@ from ray.rllib.policy.policy import PolicySpec
 from ray.rllib.utils.typing import PolicyID
 
 from environments.trading_environment import TradingEnvironment
+from environments.order_book import OrderBook, Order, OrderType, OrderSide
+from environments.market_simulator import MarketSimulator
 from agents.market_maker import MarketMakerAgent
 from agents.momentum_trader import MomentumTraderAgent
 from agents.arbitrageur import ArbitrageurAgent
@@ -36,10 +40,10 @@ logger = logging.getLogger(__name__)
 
 class MultiAgentTradingEnv(MultiAgentEnv):
     """
-    Multi-agent wrapper for the trading environment.
+    Proper multi-agent trading environment for RLlib.
     
-    This class adapts our trading environment to work with RLlib's multi-agent
-    training framework, showcasing the latest RLlib features.
+    This class creates a true multi-agent environment that works with RLlib's
+    multi-agent training framework, showcasing the latest RLlib features.
     """
     
     def __init__(self, config: Dict[str, Any]):
@@ -52,22 +56,46 @@ class MultiAgentTradingEnv(MultiAgentEnv):
         super().__init__()
         
         self.config = config
-        self.env = TradingEnvironment(config)
+        self.market_config = config.get("market", {})
+        self.agents_config = config.get("agents", {})
         
-        # Define agent IDs and types
-        self.agent_ids = list(self.env.agents.keys())
+        # Initialize components directly (not wrapping single-agent env)
+        
+        self.order_book = OrderBook(
+            tick_size=self.market_config.get("tick_size", 0.01),
+            max_depth=self.market_config.get("order_book_depth", 10)
+        )
+        
+        self.market_simulator = MarketSimulator(
+            initial_price=self.market_config.get("initial_price", 100.0),
+            volatility=self.market_config.get("volatility", 0.02),
+            liquidity_factor=self.market_config.get("liquidity_factor", 0.1),
+            mean_reversion=self.market_config.get("mean_reversion", 0.1),
+            event_probability=self.market_config.get("event_probability", 0.05)
+        )
+        
+        # Environment state
+        self.current_step = 0
+        self.max_steps = config.get("max_steps_per_episode", 1000)
+        
+        # Agent management
+        self.agent_states = {}
+        self.agent_ids = []
         self.agent_types = {}
-        
-        for agent_id in self.agent_ids:
-            agent = self.env.agents[agent_id]
-            self.agent_types[agent_id] = agent.agent_type
+        self._initialize_agents()
         
         # Environment spaces - multi-agent environments need dict spaces
         self.observation_space = {
-            agent_id: self.env.observation_space for agent_id in self.agent_ids
+            agent_id: gym.spaces.Box(
+                low=-np.inf, high=np.inf, shape=(11,), dtype=np.float32
+            ) for agent_id in self.agent_ids
         }
         self.action_space = {
-            agent_id: self.env.action_space for agent_id in self.agent_ids
+            agent_id: gym.spaces.Box(
+                low=np.array([0, 0, -1, 0]),
+                high=np.array([3, 1, 1, 1]),
+                dtype=np.float32
+            ) for agent_id in self.agent_ids
         }
         
         # Episode tracking
@@ -77,6 +105,29 @@ class MultiAgentTradingEnv(MultiAgentEnv):
         # Required attributes for Ray 2.49.1 multi-agent environments
         self.agents = self.agent_ids  # Currently active agents
         self.possible_agents = self.agent_ids  # All possible agents
+    
+    def _initialize_agents(self):
+        """Initialize trading agents based on configuration."""
+        for agent_type, agent_config in self.agents_config.items():
+            count = agent_config.get("count", 1)
+            initial_capital = agent_config.get("initial_capital", 100000)
+            
+            for i in range(count):
+                agent_id = f"{agent_type}_{i}"
+                self.agent_states[agent_id] = {
+                    "agent_id": agent_id,
+                    "agent_type": agent_type,
+                    "cash": initial_capital,
+                    "position": 0.0,
+                    "pnl": 0.0,
+                    "total_trades": 0,
+                    "active_orders": [],
+                    "last_action": None,
+                    "performance_metrics": {}
+                }
+                
+                self.agent_ids.append(agent_id)
+                self.agent_types[agent_id] = agent_type
     
     def get_action_space(self, agent_id: str):
         """Get action space for a specific agent."""
@@ -93,17 +144,40 @@ class MultiAgentTradingEnv(MultiAgentEnv):
         Returns:
             Dictionary mapping agent IDs to their initial observations
         """
-        # Reset the underlying single-agent environment
-        single_obs, info = self.env.reset(seed=seed, options=options)
-        self.episode_count += 1
+        if seed is not None:
+            np.random.seed(seed)
         
-        # Initialize episode rewards
-        for agent_id in self.agent_ids:
+        # Reset components
+        self.order_book = OrderBook(
+            tick_size=self.market_config.get("tick_size", 0.01),
+            max_depth=self.market_config.get("order_book_depth", 10)
+        )
+        self.market_simulator.reset()
+        
+        # Add initial liquidity to the order book
+        self._add_initial_liquidity()
+        
+        # Reset agent states
+        for agent_id, agent_state in self.agent_states.items():
+            agent_config = self.agents_config[agent_state["agent_type"]]
+            agent_state["cash"] = agent_config.get("initial_capital", 100000)
+            agent_state["position"] = 0.0
+            agent_state["pnl"] = 0.0
+            agent_state["total_trades"] = 0
+            agent_state["active_orders"] = []
+            agent_state["last_action"] = None
+            agent_state["performance_metrics"] = {}
+            
+            # Reset episode tracking
             self.episode_rewards[agent_id] = []
         
-        # Convert single observation to multi-agent observations
-        # Each agent gets the same observation in this simple setup
-        observations = {agent_id: single_obs for agent_id in self.agent_ids}
+        # Reset environment state
+        self.current_step = 0
+        self.episode_count += 1
+        
+        # Get initial observations
+        observations = self._get_observations()
+        info = {}
         
         return observations, info
     
@@ -117,29 +191,305 @@ class MultiAgentTradingEnv(MultiAgentEnv):
         Returns:
             Tuple of (observations, rewards, terminated, truncated, info)
         """
-        # For simplicity, use the first agent's action to step the environment
-        # In a real multi-agent setup, you'd need more sophisticated action aggregation
-        first_agent_id = list(action_dict.keys())[0]
-        action = action_dict[first_agent_id]
+        self.current_step += 1
         
-        # Convert action to numpy array if needed
-        if isinstance(action, (list, tuple)):
-            action = np.array(action, dtype=np.float32)
+        # Process actions for all agents
+        for agent_id, action in action_dict.items():
+            if agent_id in self.agent_states:
+                self._process_agent_action(agent_id, action)
         
-        # Step the single-agent environment
-        single_obs, single_reward, terminated, truncated, info = self.env.step(action)
+        # Advance market simulation
+        market_state = self.market_simulator.step()
         
-        # Convert to multi-agent format
-        observations = {agent_id: single_obs for agent_id in self.agent_ids}
-        rewards = {agent_id: single_reward for agent_id in self.agent_ids}
-        terminated_dict = {agent_id: terminated for agent_id in self.agent_ids}
-        truncated_dict = {agent_id: truncated for agent_id in self.agent_ids}
+        # Calculate rewards and update agent states
+        rewards = self._calculate_rewards()
         
-        # Update episode rewards
-        for agent_id, reward in rewards.items():
-            self.episode_rewards[agent_id].append(reward)
+        # Check termination conditions
+        terminated = self._check_termination()
+        truncated = {agent_id: self.current_step >= self.max_steps for agent_id in self.agent_ids}
         
-        return observations, rewards, terminated_dict, truncated_dict, info
+        # Get observations and info
+        observations = self._get_observations()
+        info = self._get_info()
+        
+        # Add '__all__' key required for multi-agent environments
+        terminated['__all__'] = all(terminated.values())
+        truncated['__all__'] = all(truncated.values())
+        
+        # Convert info to per-agent format for multi-agent environments
+        agent_info = {agent_id: info for agent_id in self.agent_ids}
+        
+        return observations, rewards, terminated, truncated, agent_info
+    
+    def _add_initial_liquidity(self):
+        """Add initial liquidity to the order book to enable trading."""
+        current_price = self.market_simulator.current_price
+        tick_size = self.order_book.tick_size
+        
+        # Add some buy orders below current price
+        for i in range(5):
+            price = current_price - (i + 1) * tick_size * 10  # 10 ticks below
+            quantity = 100 + i * 50  # Varying quantities
+            
+            order = Order(
+                order_id=f"liquidity_buy_{i}",
+                agent_id="market_maker_liquidity",
+                side=OrderSide.BUY,
+                order_type=OrderType.LIMIT,
+                quantity=quantity,
+                price=price,
+                timestamp=time.time()
+            )
+            self.order_book.add_order(order)
+        
+        # Add some sell orders above current price
+        for i in range(5):
+            price = current_price + (i + 1) * tick_size * 10  # 10 ticks above
+            quantity = 100 + i * 50  # Varying quantities
+            
+            order = Order(
+                order_id=f"liquidity_sell_{i}",
+                agent_id="market_maker_liquidity",
+                side=OrderSide.SELL,
+                order_type=OrderType.LIMIT,
+                quantity=quantity,
+                price=price,
+                timestamp=time.time()
+            )
+            self.order_book.add_order(order)
+    
+    def _process_agent_action(self, agent_id: str, action: np.ndarray):
+        """Process an agent's action and update the order book."""
+        agent_state = self.agent_states[agent_id]
+        
+        # Parse action
+        action_type = int(action[0])
+        quantity = float(action[1])
+        price_offset = float(action[2])
+        order_type = int(action[3])
+        
+        # Get current market conditions
+        market_data = self.order_book.get_market_data()
+        mid_price = market_data.get("mid_price") or self.market_simulator.current_price
+        
+        # Convert normalized values to actual values
+        max_quantity = min(agent_state["cash"] / mid_price, 1000) if action_type == 1 else abs(agent_state["position"])
+        actual_quantity = quantity * max_quantity
+        
+        if order_type == 0:  # Market order
+            actual_price = None
+        else:  # Limit order
+            price_range = mid_price * 0.1  # 10% price range
+            actual_price = mid_price + (price_offset * price_range)
+            actual_price = round(actual_price / self.order_book.tick_size) * self.order_book.tick_size
+        
+        # Execute action
+        if action_type == 1 and actual_quantity > 0:  # Buy
+            self._place_buy_order(agent_id, actual_quantity, actual_price)
+        elif action_type == 2 and actual_quantity > 0:  # Sell
+            self._place_sell_order(agent_id, actual_quantity, actual_price)
+        elif action_type == 3:  # Cancel orders
+            self._cancel_agent_orders(agent_id)
+        
+        # Store action for analysis
+        agent_state["last_action"] = {
+            "action_type": action_type,
+            "quantity": actual_quantity,
+            "price": actual_price,
+            "order_type": order_type
+        }
+    
+    def _place_buy_order(self, agent_id: str, quantity: float, price: Optional[float]):
+        """Place a buy order for an agent."""
+        agent_state = self.agent_states[agent_id]
+        
+        # Check if agent has enough cash
+        if price is None:  # Market order
+            max_quantity = agent_state["cash"] / self.market_simulator.current_price
+            quantity = min(quantity, max_quantity)
+        
+        if quantity <= 0:
+            return
+        
+        # Create order
+        order_id = f"{agent_id}_{uuid.uuid4().hex[:8]}"
+        order = Order(
+            order_id=order_id,
+            agent_id=agent_id,
+            side=OrderSide.BUY,
+            order_type=OrderType.MARKET if price is None else OrderType.LIMIT,
+            quantity=quantity,
+            price=price,
+            timestamp=time.time()
+        )
+        
+        # Add to order book
+        trades = self.order_book.add_order(order)
+        
+        # Process trades
+        for trade in trades:
+            self._process_trade(trade)
+        
+        # Update agent state
+        if not order.is_filled:
+            agent_state["active_orders"].append(order_id)
+    
+    def _place_sell_order(self, agent_id: str, quantity: float, price: Optional[float]):
+        """Place a sell order for an agent."""
+        agent_state = self.agent_states[agent_id]
+        
+        # Check if agent has enough position
+        max_quantity = abs(agent_state["position"])
+        quantity = min(quantity, max_quantity)
+        
+        if quantity <= 0:
+            return
+        
+        # Create order
+        order_id = f"{agent_id}_{uuid.uuid4().hex[:8]}"
+        order = Order(
+            order_id=order_id,
+            agent_id=agent_id,
+            side=OrderSide.SELL,
+            order_type=OrderType.MARKET if price is None else OrderType.LIMIT,
+            quantity=quantity,
+            price=price,
+            timestamp=time.time()
+        )
+        
+        # Add to order book
+        trades = self.order_book.add_order(order)
+        
+        # Process trades
+        for trade in trades:
+            self._process_trade(trade)
+        
+        # Update agent state
+        if not order.is_filled:
+            agent_state["active_orders"].append(order_id)
+    
+    def _cancel_agent_orders(self, agent_id: str):
+        """Cancel all active orders for an agent."""
+        agent_state = self.agent_states[agent_id]
+        
+        for order_id in agent_state["active_orders"][:]:
+            if self.order_book.cancel_order(order_id):
+                agent_state["active_orders"].remove(order_id)
+    
+    def _process_trade(self, trade):
+        """Process a completed trade and update agent states."""
+        # Update buyer (only if it's a real agent, not liquidity)
+        if trade.buy_agent_id != "market_maker_liquidity" and trade.buy_agent_id in self.agent_states:
+            buyer = self.agent_states[trade.buy_agent_id]
+            buyer["cash"] -= trade.quantity * trade.price
+            buyer["position"] += trade.quantity
+            buyer["total_trades"] += 1
+            
+            # Remove filled orders from active orders
+            if trade.buy_order_id in buyer["active_orders"]:
+                buyer["active_orders"].remove(trade.buy_order_id)
+        
+        # Update seller (only if it's a real agent, not liquidity)
+        if trade.sell_agent_id != "market_maker_liquidity" and trade.sell_agent_id in self.agent_states:
+            seller = self.agent_states[trade.sell_agent_id]
+            seller["cash"] += trade.quantity * trade.price
+            seller["position"] -= trade.quantity
+            seller["total_trades"] += 1
+            
+            # Remove filled orders from active orders
+            if trade.sell_order_id in seller["active_orders"]:
+                seller["active_orders"].remove(trade.sell_order_id)
+    
+    def _calculate_rewards(self) -> Dict[str, float]:
+        """Calculate rewards for all agents."""
+        rewards = {}
+        
+        for agent_id, agent_state in self.agent_states.items():
+            # Calculate current PnL
+            current_price = self.market_simulator.current_price
+            unrealized_pnl = agent_state["position"] * current_price
+            total_pnl = agent_state["cash"] + unrealized_pnl - 100000  # Subtract initial capital
+            
+            # Reward components
+            pnl_reward = total_pnl / 1000.0  # Normalize
+            
+            # Risk penalty (penalize large positions)
+            position_penalty = -(abs(agent_state["position"]) / 1000.0) ** 2
+            
+            # Trading cost penalty
+            trading_penalty = -agent_state["total_trades"] * 0.01
+            
+            # Add small positive reward for being active (encourage exploration)
+            activity_reward = 0.05 if agent_state["total_trades"] > 0 else 0.0
+            
+            # Penalty for doing nothing (action type 0) - encourage trading
+            inactivity_penalty = -0.001 if agent_state["last_action"] and agent_state["last_action"].get("action_type") == 0 else 0.0
+            
+            # Total reward
+            total_reward = pnl_reward + position_penalty + trading_penalty + activity_reward + inactivity_penalty
+            
+            rewards[agent_id] = total_reward
+            
+            # Update episode rewards
+            self.episode_rewards[agent_id].append(total_reward)
+            
+            # Update agent PnL
+            agent_state["pnl"] = total_pnl
+        
+        return rewards
+    
+    def _check_termination(self) -> Dict[str, bool]:
+        """Check if any agents should be terminated."""
+        terminated = {}
+        
+        for agent_id, agent_state in self.agent_states.items():
+            # Terminate if agent runs out of cash and has no position
+            if agent_state["cash"] <= 0 and agent_state["position"] <= 0:
+                terminated[agent_id] = True
+            else:
+                terminated[agent_id] = False
+        
+        return terminated
+    
+    def _get_observations(self) -> Dict[str, np.ndarray]:
+        """Get observations for all agents."""
+        observations = {}
+        
+        # Get market data
+        market_data = self.order_book.get_market_data()
+        market_conditions = self.market_simulator.get_market_conditions()
+        
+        for agent_id, agent_state in self.agent_states.items():
+            # Market features
+            market_features = np.array([
+                market_conditions["price"] / 100.0,  # Normalized price
+                market_conditions["volatility"] * 100,  # Volatility
+                market_conditions["liquidity"],
+                market_conditions["volume"] / 10000.0,  # Normalized volume
+                (market_data.get("spread") or 0.0) / 100.0,  # Normalized spread
+                len(market_data.get("buy_depth", [])),  # Buy depth
+                float(market_conditions["event"] != "normal")  # Event indicator
+            ], dtype=np.float32)
+            
+            # Agent features
+            agent_features = np.array([
+                agent_state["cash"] / 100000.0,  # Normalized cash
+                agent_state["position"] / 1000.0,  # Normalized position
+                agent_state["pnl"] / 1000.0,  # Normalized PnL
+                len(agent_state["active_orders"]) / 10.0  # Normalized active orders
+            ], dtype=np.float32)
+            
+            # Combine features
+            observation = np.concatenate([market_features, agent_features])
+            observations[agent_id] = observation
+        
+        return observations
+    
+    def _get_info(self) -> Dict[str, Any]:
+        """Get additional information about the environment state."""
+        # Return empty info dict to avoid validation issues
+        # RLlib expects info to be per-agent or empty
+        return {}
     
     def get_agent_ids(self) -> List[PolicyID]:
         """Get list of agent IDs."""
