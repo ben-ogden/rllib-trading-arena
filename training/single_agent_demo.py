@@ -7,6 +7,8 @@ trading agent. This is perfect for quick demonstrations and testing.
 """
 
 import os
+import json
+import time
 from pathlib import Path
 
 import ray
@@ -148,8 +150,10 @@ def run_single_agent_demo():
         logger.info("Starting training...")
         
         # Training loop
+        training_results = []  # Collect training results for metrics saving
         for i in range(100):  # More iterations for better results  # Reduced iterations for demo
             result = trainer.train()
+            training_results.append(result)  # Store each training result
             
             if i % 10 == 0:
                 logger.info(f"Iteration {i}:")
@@ -174,9 +178,13 @@ def run_single_agent_demo():
         checkpoint_path = trainer.save(checkpoint_dir)
         logger.info(f"Model saved to: {checkpoint_path}")
         
+        # Save training metrics for dashboard
+        _save_training_metrics(training_results, checkpoint_dir)
+        
         # Training completed successfully!
         logger.info("\n✅ Training completed successfully!")
         logger.info("The agent has been trained and the model has been saved.")
+        logger.info("Training metrics have been saved for the dashboard.")
         logger.info("You can now use the trained model for trading or further evaluation.")
         
         logger.info("\nDemo completed successfully!")
@@ -186,6 +194,65 @@ def run_single_agent_demo():
         raise
     finally:
         ray.shutdown()
+
+
+def _save_training_metrics(training_results: list, checkpoint_dir: str):
+    """Save training metrics to JSON file for dashboard consumption."""
+    try:
+        # Extract metrics from training results
+        metrics = {
+            "training_progress": {
+                "iterations": [],
+                "episode_rewards": [],
+                "episode_lengths": [],
+                "policy_losses": [],
+            },
+            "performance_summary": {
+                "total_episodes": 0,
+                "average_reward": 0.0,
+                "best_reward": 0.0,
+                "total_trades": 0,
+                "success_rate": 0.0,
+                "total_pnl": 0.0,
+            },
+            "checkpoint_info": {
+                "model_path": checkpoint_dir,
+                "model_exists": True,
+                "last_modified": time.time(),
+                "has_training_data": True,
+            }
+        }
+        
+        # Process training results
+        if training_results:
+            for i, result in enumerate(training_results):
+                metrics["training_progress"]["iterations"].append(i)
+                
+                # Extract episode metrics and convert to Python floats for JSON serialization
+                episode_return_mean = float(result.get("env_runners", {}).get("episode_return_mean", 0.0))
+                episode_len_mean = float(result.get("env_runners", {}).get("episode_len_mean", 0.0))
+                policy_loss = float(result.get("learners", {}).get("default_policy", {}).get("policy_loss", 0.0))
+                
+                metrics["training_progress"]["episode_rewards"].append(episode_return_mean)
+                metrics["training_progress"]["episode_lengths"].append(episode_len_mean)
+                metrics["training_progress"]["policy_losses"].append(policy_loss)
+            
+            # Calculate summary metrics
+            if metrics["training_progress"]["episode_rewards"]:
+                rewards = metrics["training_progress"]["episode_rewards"]
+                metrics["performance_summary"]["total_episodes"] = len(rewards)
+                metrics["performance_summary"]["average_reward"] = sum(rewards) / len(rewards)
+                metrics["performance_summary"]["best_reward"] = max(rewards)
+        
+        # Save to JSON file
+        metrics_file = os.path.join(checkpoint_dir, "training_metrics.json")
+        with open(metrics_file, 'w') as f:
+            json.dump(metrics, f, indent=2)
+        
+        logger.info(f"Training metrics saved to: {metrics_file}")
+        
+    except Exception as e:
+        logger.warning(f"Could not save training metrics: {e}")
 
 
 if __name__ == "__main__":

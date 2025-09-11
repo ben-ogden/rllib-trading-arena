@@ -6,7 +6,6 @@ visualizing agent performance, and analyzing market dynamics.
 """
 
 from .trading_dashboard import TradingDashboard
-from .metrics_visualizer import MetricsVisualizer
 
-__all__ = ["TradingDashboard", "MetricsVisualizer"]
+__all__ = ["TradingDashboard"]
 

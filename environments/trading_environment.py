@@ -440,49 +440,52 @@ class TradingEnvironment(gym.Env):
             unrealized_pnl = agent.position * current_price
             total_pnl = agent.cash + unrealized_pnl - 100000  # Subtract initial capital
             
-            # Base reward components
-            pnl_reward = total_pnl / 10000.0  # Normalize (smaller denominator for more meaningful rewards)
+            # PROFIT-FOCUSED REWARD FUNCTION
+            # Primary reward: PnL (make this the dominant component)
+            pnl_reward = total_pnl / 1000.0  # Increased weight for PnL (was 10000.0)
             
-            # Risk penalty (penalize large positions)
-            position_penalty = -(abs(agent.position) / 1000.0) ** 2 * 0.1  # Reduced penalty
+            # Risk penalty (penalize large positions more heavily)
+            position_penalty = -(abs(agent.position) / 500.0) ** 2 * 0.5  # Stronger penalty for large positions
             
-            # Trading cost penalty (reduced)
-            trading_penalty = -agent.total_trades * 0.001  # Much smaller penalty
+            # Trading cost penalty (realistic trading costs)
+            trading_penalty = -agent.total_trades * 0.01  # Realistic trading cost
             
-            # Market making bonus (for market makers who are actively making markets)
+            # Market making bonus (only for profitable market making)
             market_making_bonus = 0.0
-            if agent.agent_type == "market_maker" and agent.total_trades > 0:
+            if agent.agent_type == "market_maker" and agent.total_trades > 0 and total_pnl > 0:
                 spread = self.order_book.get_spread()
                 if spread is not None and spread > 0:
-                    market_making_bonus = spread * 0.1
+                    market_making_bonus = spread * 0.05  # Reduced bonus
             
-            # EXPLORATION REWARDS - Key changes to encourage learning
-            # Reward for placing orders (even if not filled)
-            order_placement_reward = 0.01 if agent.last_action and agent.last_action.get("action_type") in [1, 2] else 0.0
+            # MINIMAL EXPLORATION REWARDS (much smaller than PnL)
+            # Small reward for placing orders (to encourage initial exploration)
+            order_placement_reward = 0.001 if agent.last_action and agent.last_action.get("action_type") in [1, 2] else 0.0
             
-            # Reward for being active (placing any non-hold action)
-            activity_reward = 0.005 if agent.last_action and agent.last_action.get("action_type") != 0 else 0.0
+            # Very small reward for being active (to prevent complete inactivity)
+            activity_reward = 0.0005 if agent.last_action and agent.last_action.get("action_type") != 0 else 0.0
             
-            # Small penalty for doing nothing (action type 0) - encourage trading
-            inactivity_penalty = -0.002 if agent.last_action and agent.last_action.get("action_type") == 0 else 0.0
+            # Small penalty for doing nothing (to encourage some activity)
+            inactivity_penalty = -0.001 if agent.last_action and agent.last_action.get("action_type") == 0 else 0.0
             
-            # Reward for successful trades (increased)
-            trade_success_reward = agent.total_trades * 0.1 if agent.total_trades > 0 else 0.0
+            # Reward for profitable trades (not just any trades)
+            profitable_trade_reward = 0.0
+            if agent.total_trades > 0 and total_pnl > 0:
+                profitable_trade_reward = min(total_pnl / 1000.0, 0.1)  # Reward proportional to profit
             
-            # Reward for maintaining reasonable position
-            position_reward = 0.02 if abs(agent.position) < 100 else 0.0
+            # Reward for maintaining reasonable position (risk management)
+            position_reward = 0.01 if abs(agent.position) < 50 else 0.0  # Reward smaller positions
             
-            # Reward for having active orders (market making behavior)
-            active_orders_reward = len(agent.active_orders) * 0.001 if len(agent.active_orders) > 0 else 0.0
+            # Small reward for having active orders (market making behavior)
+            active_orders_reward = len(agent.active_orders) * 0.0001 if len(agent.active_orders) > 0 else 0.0
             
-            # Total reward - more encouraging for exploration
+            # Total reward - PnL focused with minimal exploration incentives
             total_reward = (pnl_reward + position_penalty + trading_penalty + market_making_bonus + 
-                          activity_reward + inactivity_penalty + trade_success_reward + 
+                          activity_reward + inactivity_penalty + profitable_trade_reward + 
                           position_reward + order_placement_reward + active_orders_reward)
             
-            # Ensure minimum reward to encourage exploration
-            if total_reward == 0.0 and agent.last_action and agent.last_action.get("action_type") != 0:
-                total_reward = 0.001  # Small positive reward for any non-hold action
+            # Only give minimum reward if agent is completely inactive (to prevent total stagnation)
+            if total_reward == 0.0 and agent.last_action and agent.last_action.get("action_type") == 0:
+                total_reward = -0.001  # Small penalty for complete inactivity
             
             rewards[agent_id] = total_reward
             

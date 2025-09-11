@@ -1,69 +1,21 @@
-"""
-Interactive Trading Dashboard
-
-A Streamlit-based dashboard for monitoring RLlib training progress,
-visualizing agent performance, and analyzing market dynamics in real-time.
-"""
-
 import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
 import yaml
 import json
+import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from pathlib import Path
-import time
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any, Optional
 
-# Configure Streamlit page
+# Set page config
 st.set_page_config(
     page_title="RLlib Trading Demo Dashboard",
-    page_icon="📈",
+    page_icon="🚀",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
-st.markdown("""
-<style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #1f77b4;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    .metric-card {
-        background-color: #f0f2f6;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        border-left: 4px solid #1f77b4;
-    }
-    .agent-card {
-        background-color: #ffffff;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin-bottom: 1rem;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-
 class TradingDashboard:
-    """
-    Interactive dashboard for the RLlib trading demo.
-    
-    This dashboard provides real-time monitoring of:
-    - Training progress and metrics
-    - Agent performance comparison
-    - Market dynamics visualization
-    - Algorithm comparison
-    - Anyscale cloud features
-    """
-    
     def __init__(self):
         """Initialize the dashboard."""
         self.config = self._load_config()
@@ -79,11 +31,12 @@ class TradingDashboard:
     
     def _load_metrics_data(self) -> Dict[str, Any]:
         """Load metrics data from training runs."""
-        # Try to load real data first, fall back to sample data
+        # Only return real data if it exists, otherwise return empty data
         real_data = self._load_real_training_data()
-        if real_data:
+        if real_data and real_data.get("checkpoint_info", {}).get("has_training_data", False):
             return real_data
-        return self._generate_sample_metrics()
+        # Return empty data structure - no fake metrics
+        return self._get_empty_metrics()
     
     def _load_real_training_data(self) -> Optional[Dict[str, Any]]:
         """Load real training data from checkpoints and logs."""
@@ -93,84 +46,114 @@ class TradingDashboard:
             if not checkpoint_dir.exists():
                 return None
             
-            # For now, return a realistic dataset based on our actual results
-            # In a full implementation, you'd parse actual training logs
-            iterations = 100
-            agents = ["market_maker"]
-            
-            # Create realistic data based on our actual training results
-            data = {
-                "training_progress": {
-                    "iterations": list(range(iterations)),
-                    "episode_rewards": [0.0] * 70 + [1.98] * 30,  # Based on our actual results
-                    "episode_lengths": [0.0] * 70 + [1000.0] * 30,  # Full episodes
-                    "policy_losses": [0.0] * 70 + [-0.15] * 30,  # Negative loss is good
-                },
-                "agent_performance": {
-                    "market_maker": {
-                        "rewards": [0.0] * 70 + [1.98] * 30,
-                        "trades": [0] * 70 + [5] * 30,  # Some trading activity
-                        "pnl": [0.0] * 70 + [198.0] * 30,  # Positive PnL
+            # Check if we have a trained model
+            single_agent_checkpoint = checkpoint_dir / "single_agent_demo"
+            if single_agent_checkpoint.exists():
+                # Check for training metrics file
+                metrics_file = single_agent_checkpoint / "training_metrics.json"
+                eval_file = single_agent_checkpoint / "evaluation_results.json"
+                
+                if metrics_file.exists():
+                    # Load actual training metrics
+                    with open(metrics_file, 'r') as f:
+                        data = json.load(f)
+                    
+                    # Also load evaluation results if available
+                    if eval_file.exists():
+                        with open(eval_file, 'r') as f:
+                            eval_data = json.load(f)
+                        data["evaluation_results"] = eval_data
+                    
+                    return data
+                else:
+                    # We have a trained model, but no training metrics file
+                    data = {
+                        "training_progress": {
+                            "iterations": [],
+                            "episode_rewards": [],
+                            "episode_lengths": [],
+                            "policy_losses": [],
+                        },
+                        "agent_performance": {
+                            "market_maker": {
+                                "rewards": [],
+                                "trades": [],
+                                "pnl": [],
+                            }
+                        },
+                        "market_metrics": {
+                            "prices": [],
+                            "volatility": [],
+                            "volume": [],
+                            "spread": [],
+                        },
+                        "performance_summary": {
+                            "total_episodes": 0,
+                            "average_reward": 0.0,
+                            "best_reward": 0.0,
+                            "total_trades": 0,
+                            "success_rate": 0.0,
+                            "total_pnl": 0.0,
+                        },
+                        "checkpoint_info": {
+                            "model_path": str(single_agent_checkpoint),
+                            "model_exists": True,
+                            "last_modified": single_agent_checkpoint.stat().st_mtime if single_agent_checkpoint.exists() else None,
+                            "has_training_data": False,  # No training metrics file
+                        }
                     }
-                },
-                "market_metrics": {
-                    "prices": [100.0 + i * 0.1 for i in range(iterations)],  # Slight upward trend
-                    "volatility": [0.02] * iterations,  # Consistent volatility
-                    "volume": [1000 + i * 10 for i in range(iterations)],  # Increasing volume
-                    "spread": [0.01 + i * 0.0001 for i in range(iterations)],  # Slight spread increase
-                },
-                "performance_summary": {
-                    "total_episodes": 100,
-                    "average_reward": 0.59,  # Average of 0 and 1.98
-                    "best_reward": 1.98,
-                    "total_trades": 150,
-                    "success_rate": 0.85,
-                    "total_pnl": 2970.0,  # 30 episodes * 99 PnL
-                }
-            }
-            return data
+                    return data
+            else:
+                return None
         except Exception as e:
             st.warning(f"Could not load real training data: {e}")
             return None
     
-    def _generate_sample_metrics(self) -> Dict[str, Any]:
-        """Generate sample metrics data for demonstration."""
-        iterations = 100
-        agents = ["market_maker", "momentum_trader", "arbitrageur"]
-        
-        data = {
+    def _get_empty_metrics(self) -> Dict[str, Any]:
+        """Return empty metrics structure - no fake data."""
+        return {
             "training_progress": {
-                "iterations": list(range(iterations)),
-                "episode_rewards": np.cumsum(np.random.normal(0.1, 0.5, iterations)),
-                "episode_lengths": np.random.normal(200, 50, iterations),
-                "policy_losses": np.random.exponential(0.1, iterations),
+                "iterations": [],
+                "episode_rewards": [],
+                "episode_lengths": [],
+                "policy_losses": [],
             },
             "agent_performance": {
-                agent: {
-                    "rewards": np.cumsum(np.random.normal(0.05, 0.3, iterations)),
-                    "trades": np.random.poisson(10, iterations),
-                    "pnl": np.cumsum(np.random.normal(0.02, 0.2, iterations)),
+                "market_maker": {
+                    "rewards": [],
+                    "trades": [],
+                    "pnl": [],
                 }
-                for agent in agents
             },
             "market_metrics": {
-                "prices": 100 + np.cumsum(np.random.normal(0, 0.5, iterations)),
-                "volatility": np.random.exponential(0.02, iterations),
-                "volume": np.random.poisson(1000, iterations),
-                "spread": np.random.exponential(0.01, iterations),
+                "prices": [],
+                "volatility": [],
+                "volume": [],
+                "spread": [],
             },
-            "algorithm_comparison": {
-                "ppo": {"final_reward": 45.2, "training_time": 120.5, "convergence": 85},
-                "a3c": {"final_reward": 38.7, "training_time": 95.3, "convergence": 78},
-                "impala": {"final_reward": 42.1, "training_time": 110.2, "convergence": 82},
+            "performance_summary": {
+                "total_episodes": 0,
+                "average_reward": 0.0,
+                "best_reward": 0.0,
+                "total_trades": 0,
+                "success_rate": 0.0,
+                "total_pnl": 0.0,
+            },
+            "checkpoint_info": {
+                "model_path": "",
+                "model_exists": False,
+                "last_modified": None,
+                "has_training_data": False,
             }
         }
-        
-        return data
     
     def render_header(self):
         """Render the dashboard header."""
         st.markdown('<h1 class="main-header">🚀 RLlib Trading Demo Dashboard</h1>', unsafe_allow_html=True)
+        
+        checkpoint_dir = Path("checkpoints")
+        single_agent_checkpoint = checkpoint_dir / "single_agent_demo"
+        has_model = single_agent_checkpoint.exists()
         
         col1, col2, col3 = st.columns(3)
         
@@ -182,66 +165,54 @@ class TradingDashboard:
             )
         
         with col2:
-            st.metric(
-                label="Training Status",
-                value="Active",
-                delta="Running"
-            )
+            if has_model:
+                st.metric(
+                    label="Model Status",
+                    value="Trained",
+                    delta="Ready for evaluation"
+                )
+            else:
+                st.metric(
+                    label="Model Status",
+                    value="Not Trained",
+                    delta="Run training first"
+                )
         
         with col3:
-            st.metric(
-                label="Agents",
-                value="5",
-                delta="Multi-Agent"
-            )
+            if has_model:
+                st.metric(
+                    label="Dashboard Mode",
+                    value="Real Data",
+                    delta="Showing trained model"
+                )
+            else:
+                st.metric(
+                    label="Dashboard Mode",
+                    value="Demo Mode",
+                    delta="Showing sample data"
+                )
     
-    def render_sidebar(self):
-        """Render the sidebar with controls."""
-        st.sidebar.title("🎛️ Dashboard Controls")
-        
-        # Algorithm selection
-        algorithm = st.sidebar.selectbox(
-            "Select Algorithm",
-            ["PPO", "A3C", "IMPALA", "All"],
-            index=0
-        )
-        
-        # Agent type filter
-        agent_types = st.sidebar.multiselect(
-            "Agent Types",
-            ["market_maker", "momentum_trader", "arbitrageur"],
-            default=["market_maker", "momentum_trader", "arbitrageur"]
-        )
-        
-        # Time range
-        time_range = st.sidebar.slider(
-            "Training Iterations",
-            min_value=0,
-            max_value=100,
-            value=(0, 100),
-            step=10
-        )
-        
-        # Auto-refresh
-        auto_refresh = st.sidebar.checkbox("Auto-refresh", value=True)
-        if auto_refresh:
-            refresh_interval = st.sidebar.slider("Refresh Interval (seconds)", 1, 30, 5)
-            time.sleep(refresh_interval)
-            st.rerun()
-        
-        return {
-            "algorithm": algorithm,
-            "agent_types": agent_types,
-            "time_range": time_range,
-            "auto_refresh": auto_refresh
-        }
-    
-    def render_training_progress(self, controls: Dict[str, Any]):
+    def render_training_progress(self):
         """Render training progress visualization."""
         st.header("📊 Training Progress")
         
         data = self.metrics_data["training_progress"]
-        start_idx, end_idx = controls["time_range"]
+        
+        # Check if we have actual training data
+        if not data["iterations"] or len(data["iterations"]) == 0:
+            st.info("📝 **No training metrics available**")
+            st.markdown("""
+            **Why no training data?**
+            - RLlib checkpoints don't store training metrics by default
+            - Training logs are typically stored separately during training
+            - The model was trained but metrics weren't saved to disk
+            
+            **To see training progress:**
+            1. Run training with logging enabled: `uv run python training/single_agent_demo.py`
+            2. Watch the terminal output for real-time metrics
+            3. Use Ray Dashboard at http://127.0.0.1:8265 during training
+            """)
+            return
         
         # Create subplots
         fig = make_subplots(
@@ -254,8 +225,8 @@ class TradingDashboard:
         # Episode rewards
         fig.add_trace(
             go.Scatter(
-                x=data["iterations"][start_idx:end_idx],
-                y=data["episode_rewards"][start_idx:end_idx],
+                x=data["iterations"],
+                y=data["episode_rewards"],
                 mode='lines',
                 name='Episode Rewards',
                 line=dict(color='#1f77b4', width=2)
@@ -266,8 +237,8 @@ class TradingDashboard:
         # Episode lengths
         fig.add_trace(
             go.Scatter(
-                x=data["iterations"][start_idx:end_idx],
-                y=data["episode_lengths"][start_idx:end_idx],
+                x=data["iterations"],
+                y=data["episode_lengths"],
                 mode='lines',
                 name='Episode Lengths',
                 line=dict(color='#ff7f0e', width=2)
@@ -278,8 +249,8 @@ class TradingDashboard:
         # Policy loss
         fig.add_trace(
             go.Scatter(
-                x=data["iterations"][start_idx:end_idx],
-                y=data["policy_losses"][start_idx:end_idx],
+                x=data["iterations"],
+                y=data["policy_losses"],
                 mode='lines',
                 name='Policy Loss',
                 line=dict(color='#2ca02c', width=2)
@@ -287,344 +258,246 @@ class TradingDashboard:
             row=2, col=1
         )
         
-        # Learning curve (smoothed)
-        smoothed_rewards = pd.Series(data["episode_rewards"][start_idx:end_idx]).rolling(window=10).mean()
-        fig.add_trace(
-            go.Scatter(
-                x=data["iterations"][start_idx:end_idx],
-                y=smoothed_rewards,
-                mode='lines',
-                name='Smoothed Rewards',
-                line=dict(color='#d62728', width=3)
-            ),
-            row=2, col=2
-        )
+        # Learning curve (smoothed rewards)
+        if len(data["episode_rewards"]) > 0:
+            smoothed_rewards = []
+            window = 10
+            for i in range(len(data["episode_rewards"])):
+                start = max(0, i - window)
+                smoothed_rewards.append(sum(data["episode_rewards"][start:i+1]) / (i - start + 1))
+            
+            fig.add_trace(
+                go.Scatter(
+                    x=data["iterations"],
+                    y=smoothed_rewards,
+                    mode='lines',
+                    name='Smoothed Rewards',
+                    line=dict(color='#d62728', width=3)
+                ),
+                row=2, col=2
+            )
         
-        fig.update_layout(
-            height=600,
-            showlegend=False,
-            title_text="Training Metrics Over Time"
-        )
-        
+        fig.update_layout(height=600, showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
     
-    def render_agent_performance(self, controls: Dict[str, Any]):
-        """Render agent performance comparison."""
-        st.header("🤖 Agent Performance")
+    def render_checkpoint_info(self):
+        """Render checkpoint and model information."""
+        st.header("💾 Model Checkpoint Information")
         
-        data = self.metrics_data["agent_performance"]
-        agent_types = controls["agent_types"]
+        checkpoint_dir = Path("checkpoints")
+        single_agent_checkpoint = checkpoint_dir / "single_agent_demo"
         
-        # Create tabs for different metrics
-        tab1, tab2, tab3 = st.tabs(["Rewards", "Trading Activity", "P&L"])
-        
-        with tab1:
-            fig = go.Figure()
+        if single_agent_checkpoint.exists():
+            st.success("✅ Trained model found!")
             
-            colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd']
+            col1, col2, col3 = st.columns(3)
             
-            for i, agent_type in enumerate(agent_types):
-                if agent_type in data:
-                    fig.add_trace(go.Scatter(
-                        x=list(range(len(data[agent_type]["rewards"]))),
-                        y=data[agent_type]["rewards"],
-                        mode='lines',
-                        name=agent_type.replace('_', ' ').title(),
-                        line=dict(color=colors[i % len(colors)], width=2)
-                    ))
+            with col1:
+                st.metric("Model Status", "Trained", "Ready for evaluation")
             
-            fig.update_layout(
-                title="Agent Reward Comparison",
-                xaxis_title="Training Iterations",
-                yaxis_title="Cumulative Reward",
-                height=400
-            )
+            with col2:
+                total_size = sum(f.stat().st_size for f in single_agent_checkpoint.rglob('*') if f.is_file())
+                size_mb = total_size / (1024 * 1024)
+                st.metric("Model Size", f"{size_mb:.1f} MB", "Checkpoint files")
             
-            st.plotly_chart(fig, use_container_width=True)
-        
-        with tab2:
-            # Trading activity heatmap
-            trading_data = []
-            for agent_type in agent_types:
-                if agent_type in data:
-                    trading_data.append(data[agent_type]["trades"])
+            with col3:
+                last_modified = single_agent_checkpoint.stat().st_mtime
+                import datetime
+                mod_time = datetime.datetime.fromtimestamp(last_modified)
+                st.metric("Last Modified", mod_time.strftime("%Y-%m-%d %H:%M"), "Training completed")
             
-            if trading_data:
-                fig = px.imshow(
-                    trading_data,
-                    labels=dict(x="Iteration", y="Agent", color="Trades"),
-                    x=list(range(len(trading_data[0]))),
-                    y=[agent.replace('_', ' ').title() for agent in agent_types],
-                    aspect="auto",
-                    color_continuous_scale="Blues"
-                )
-                fig.update_layout(
-                    title="Trading Activity Heatmap",
-                    height=400
-                )
-                st.plotly_chart(fig, use_container_width=True)
-        
-        with tab3:
-            # P&L comparison
-            fig = go.Figure()
+            st.subheader("📁 Checkpoint Structure")
+            checkpoint_files = []
+            for file_path in single_agent_checkpoint.rglob('*'):
+                if file_path.is_file():
+                    relative_path = file_path.relative_to(single_agent_checkpoint)
+                    size = file_path.stat().st_size
+                    checkpoint_files.append({
+                        "File": str(relative_path),
+                        "Size (bytes)": size,
+                        "Type": "Model" if "module_state" in str(relative_path) else "Config" if "metadata" in str(relative_path) else "Other"
+                    })
             
-            for i, agent_type in enumerate(agent_types):
-                if agent_type in data:
-                    fig.add_trace(go.Scatter(
-                        x=list(range(len(data[agent_type]["pnl"]))),
-                        y=data[agent_type]["pnl"],
-                        mode='lines',
-                        name=agent_type.replace('_', ' ').title(),
-                        line=dict(color=colors[i % len(colors)], width=2)
-                    ))
+            if checkpoint_files:
+                df = pd.DataFrame(checkpoint_files)
+                st.dataframe(df, use_container_width=True)
             
-            fig.update_layout(
-                title="Agent P&L Comparison",
-                xaxis_title="Training Iterations",
-                yaxis_title="Profit & Loss",
-                height=400
-            )
+            st.subheader("🔍 Model Evaluation")
+            st.info("💡 To evaluate your trained model, run: `uv run python training/single_agent_evaluation.py`")
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.markdown("**Evaluation will show:**")
+            st.markdown("- 🎯 Trading behavior (BUY, SELL, HOLD, CANCEL actions)")
+            st.markdown("- 📊 Performance metrics (rewards, P&L, trading frequency)")
+            st.markdown("- 📈 Action distribution analysis")
+            st.markdown("- 🛡️ Risk management assessment")
+            
+        else:
+            st.warning("⚠️ No trained model found")
+            st.info("💡 To train a model, run: `uv run python training/single_agent_demo.py`")
+            
+            st.markdown("**Training will:**")
+            st.markdown("- 🚀 Train a market maker agent using PPO")
+            st.markdown("- 📊 Save the model to `checkpoints/single_agent_demo/`")
+            st.markdown("- ⏱️ Take 5-10 minutes to complete")
+            st.markdown("- 🎯 Show training progress and metrics")
     
-    def render_market_dynamics(self, controls: Dict[str, Any]):
-        """Render market dynamics visualization."""
-        st.header("📈 Market Dynamics")
+    def render_performance_summary(self):
+        """Render training performance summary."""
+        st.header("📈 Training Performance Summary")
         
-        data = self.metrics_data["market_metrics"]
+        summary = self.metrics_data["performance_summary"]
         
-        # Create subplots for market metrics
-        fig = make_subplots(
-            rows=2, cols=2,
-            subplot_titles=("Price Movement", "Volatility", "Trading Volume", "Bid-Ask Spread"),
-            specs=[[{"secondary_y": False}, {"secondary_y": False}],
-                   [{"secondary_y": False}, {"secondary_y": False}]]
-        )
+        # Check if we have any data
+        if summary["total_episodes"] == 0:
+            st.info("📝 **No training data available**")
+            st.markdown("""
+            **To get training metrics:**
+            1. Run training: `uv run python training/single_agent_demo.py`
+            2. Run evaluation: `uv run python training/single_agent_evaluation.py`
+            3. Refresh this dashboard
+            """)
+            return
         
-        # Price movement
-        fig.add_trace(
-            go.Scatter(
-                x=list(range(len(data["prices"]))),
-                y=data["prices"],
-                mode='lines',
-                name='Price',
-                line=dict(color='#1f77b4', width=2)
-            ),
-            row=1, col=1
-        )
+        st.info("""
+        **Note:** Training metrics show high-level learning progress. For detailed trading performance, 
+        see the **Evaluation Results** section below which contains actual agent behavior data.
+        """)
         
-        # Volatility
-        fig.add_trace(
-            go.Scatter(
-                x=list(range(len(data["volatility"]))),
-                y=data["volatility"],
-                mode='lines',
-                name='Volatility',
-                line=dict(color='#ff7f0e', width=2)
-            ),
-            row=1, col=2
-        )
-        
-        # Volume
-        fig.add_trace(
-            go.Bar(
-                x=list(range(len(data["volume"]))),
-                y=data["volume"],
-                name='Volume',
-                marker_color='#2ca02c'
-            ),
-            row=2, col=1
-        )
-        
-        # Spread
-        fig.add_trace(
-            go.Scatter(
-                x=list(range(len(data["spread"]))),
-                y=data["spread"],
-                mode='lines',
-                name='Spread',
-                line=dict(color='#d62728', width=2)
-            ),
-            row=2, col=2
-        )
-        
-        fig.update_layout(
-            height=600,
-            showlegend=False,
-            title_text="Market Dynamics Over Time"
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
-    
-    def render_algorithm_comparison(self, controls: Dict[str, Any]):
-        """Render algorithm comparison."""
-        st.header("⚡ Algorithm Comparison")
-        
-        data = self.metrics_data["algorithm_comparison"]
-        
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         
         with col1:
-            # Performance metrics
-            algorithms = list(data.keys())
-            final_rewards = [data[alg]["final_reward"] for alg in algorithms]
-            training_times = [data[alg]["training_time"] for alg in algorithms]
-            
-            fig = go.Figure()
-            
-            fig.add_trace(go.Bar(
-                x=algorithms,
-                y=final_rewards,
-                name='Final Reward',
-                marker_color=['#1f77b4', '#ff7f0e', '#2ca02c']
-            ))
-            
-            fig.update_layout(
-                title="Final Performance Comparison",
-                xaxis_title="Algorithm",
-                yaxis_title="Final Reward",
-                height=400
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-        
+            st.metric("Training Episodes", summary["total_episodes"])
         with col2:
-            # Training efficiency
-            fig = go.Figure()
+            st.metric("Average Reward", f"{summary['average_reward']:.2f}")
+        with col3:
+            st.metric("Best Reward", f"{summary['best_reward']:.2f}")
+        
+        # Show training progress chart if we have data
+        training_data = self.metrics_data.get("training_progress", {})
+        if training_data.get("iterations") and training_data.get("episode_rewards"):
+            st.subheader("📊 Training Progress")
             
+            import plotly.graph_objects as go
+            fig = go.Figure()
             fig.add_trace(go.Scatter(
-                x=training_times,
-                y=final_rewards,
-                mode='markers+text',
-                text=algorithms,
-                textposition="top center",
-                marker=dict(size=15, color=['#1f77b4', '#ff7f0e', '#2ca02c'])
+                x=training_data["iterations"],
+                y=training_data["episode_rewards"],
+                mode='lines',
+                name='Episode Rewards',
+                line=dict(color='#1f77b4', width=2)
             ))
-            
             fig.update_layout(
-                title="Training Efficiency",
-                xaxis_title="Training Time (seconds)",
-                yaxis_title="Final Reward",
-                height=400
+                title="Episode Rewards Over Training",
+                xaxis_title="Training Iteration",
+                yaxis_title="Average Episode Reward",
+                height=300
             )
-            
             st.plotly_chart(fig, use_container_width=True)
-    
-    def render_anyscale_features(self):
-        """Render Anyscale cloud features showcase."""
-        st.header("☁️ Anyscale Cloud Features")
+
+    def render_evaluation_results(self):
+        """Render evaluation results section."""
+        st.header("🎯 Evaluation Results")
         
-        col1, col2, col3 = st.columns(3)
+        eval_data = self.metrics_data.get("evaluation_results")
+        
+        if not eval_data:
+            st.info("📝 **No evaluation results available**")
+            st.markdown("""
+            **To see evaluation results:**
+            1. Run training: `uv run python training/single_agent_demo.py`
+            2. Run evaluation: `uv run python training/single_agent_evaluation.py`
+            3. Refresh this dashboard
+            """)
+            return
+        
+        eval_summary = eval_data.get("evaluation_summary", {})
+        action_dist = eval_data.get("action_distribution", {})
+        
+        # Evaluation summary metrics
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.markdown("""
-            <div class="metric-card">
-                <h4>🚀 Distributed Training</h4>
-                <p>Scale training across multiple nodes with Ray's distributed computing</p>
-                <ul>
-                    <li>Multi-worker training</li>
-                    <li>Automatic load balancing</li>
-                    <li>Fault tolerance</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric("Episodes Evaluated", eval_summary.get("total_episodes", 0))
+            st.metric("Average Reward", f"{eval_summary.get('average_reward', 0):.2f}")
         
         with col2:
-            st.markdown("""
-            <div class="metric-card">
-                <h4>📊 Real-time Monitoring</h4>
-                <p>Monitor training progress and performance in real-time</p>
-                <ul>
-                    <li>Live metrics dashboard</li>
-                    <li>Custom callbacks</li>
-                    <li>TensorBoard integration</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric("Average P&L", f"${eval_summary.get('average_pnl', 0):,.2f}")
+            st.metric("Best P&L", f"${eval_summary.get('best_pnl', 0):,.2f}")
         
         with col3:
-            st.markdown("""
-            <div class="metric-card">
-                <h4>🔄 Auto-scaling</h4>
-                <p>Automatically scale resources based on workload</p>
-                <ul>
-                    <li>Dynamic worker allocation</li>
-                    <li>Cost optimization</li>
-                    <li>Spot instance support</li>
-                </ul>
-            </div>
-            """, unsafe_allow_html=True)
+            st.metric("Worst P&L", f"${eval_summary.get('worst_pnl', 0):,.2f}")
+            st.metric("Success Rate", f"{eval_summary.get('success_rate', 0):.1f}%")
         
-        # Feature comparison table
-        st.subheader("RLlib vs Traditional RL Frameworks")
+        with col4:
+            st.metric("Profitable Episodes", f"{eval_summary.get('profitable_episodes', 0)}/{eval_summary.get('total_episodes', 0)}")
+            st.metric("Average Trades", f"{eval_summary.get('average_trades', 0):.1f}")
         
-        comparison_data = {
-            "Feature": [
-                "Multi-Agent Support",
-                "Distributed Training", 
-                "Algorithm Variety",
-                "Scalability",
-                "Cloud Integration",
-                "Monitoring",
-                "Checkpointing"
-            ],
-            "RLlib": ["✅ Native", "✅ Ray-based", "✅ 20+ algorithms", "✅ Linear scaling", "✅ Anyscale", "✅ Built-in", "✅ Automatic"],
-            "Traditional": ["❌ Manual", "❌ Limited", "❌ Single algorithm", "❌ Limited", "❌ Manual setup", "❌ External tools", "❌ Manual"]
-        }
+        # Action distribution
+        st.subheader("📊 Action Distribution")
+        if action_dist:
+            col1, col2, col3, col4 = st.columns(4)
+            total_actions = sum(action_dist.values())
+            
+            with col1:
+                buy_pct = (action_dist.get("BUY", 0) / total_actions * 100) if total_actions > 0 else 0
+                st.metric("BUY", f"{action_dist.get('BUY', 0)} ({buy_pct:.1f}%)")
+            
+            with col2:
+                sell_pct = (action_dist.get("SELL", 0) / total_actions * 100) if total_actions > 0 else 0
+                st.metric("SELL", f"{action_dist.get('SELL', 0)} ({sell_pct:.1f}%)")
+            
+            with col3:
+                hold_pct = (action_dist.get("HOLD", 0) / total_actions * 100) if total_actions > 0 else 0
+                st.metric("HOLD", f"{action_dist.get('HOLD', 0)} ({hold_pct:.1f}%)")
+            
+            with col4:
+                cancel_pct = (action_dist.get("CANCEL", 0) / total_actions * 100) if total_actions > 0 else 0
+                st.metric("CANCEL", f"{action_dist.get('CANCEL', 0)} ({cancel_pct:.1f}%)")
         
-        df = pd.DataFrame(comparison_data)
-        st.dataframe(df, use_container_width=True)
-    
-    def render_footer(self):
-        """Render the dashboard footer."""
-        st.markdown("---")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.markdown("**🔗 Links**")
-            st.markdown("- [Ray Documentation](https://docs.ray.io/)")
-            st.markdown("- [RLlib Documentation](https://docs.ray.io/en/latest/rllib/)")
-            st.markdown("- [Anyscale Platform](https://www.anyscale.com/)")
-        
-        with col2:
-            st.markdown("**📚 Resources**")
-            st.markdown("- [Multi-Agent RL Guide](https://docs.ray.io/en/latest/rllib/rllib-multi-agent.html)")
-            st.markdown("- [Distributed Training](https://docs.ray.io/en/latest/rllib/rllib-training.html)")
-            st.markdown("- [Algorithm Comparison](https://docs.ray.io/en/latest/rllib/rllib-algorithms.html)")
-        
-        with col3:
-            st.markdown("**🛠️ Tools**")
-            st.markdown("- Ray 2.49.1")
-            st.markdown("- RLlib (Latest)")
-            st.markdown("- Streamlit Dashboard")
-            st.markdown("- Plotly Visualization")
+        # Episode details
+        episode_details = eval_data.get("episode_details", [])
+        if episode_details:
+            st.subheader("📋 Episode Details")
+            
+            # Create a DataFrame for better display
+            import pandas as pd
+            df_data = []
+            for episode in episode_details:
+                df_data.append({
+                    "Episode": episode.get("episode", 0),
+                    "Reward": f"{episode.get('reward', 0):.2f}",
+                    "P&L": f"${episode.get('pnl', 0):,.2f}",
+                    "Trades": episode.get("trades", 0),
+                    "Position": f"{episode.get('position', 0):.2f}",
+                    "Cash": f"${episode.get('cash', 0):,.2f}"
+                })
+            
+            if df_data:
+                df = pd.DataFrame(df_data)
+                st.dataframe(df, use_container_width=True)
     
     def run(self):
         """Run the complete dashboard."""
         # Render header
         self.render_header()
         
-        # Render sidebar and get controls
-        controls = self.render_sidebar()
-        
         # Render main content
-        self.render_training_progress(controls)
-        self.render_agent_performance(controls)
-        self.render_market_dynamics(controls)
-        self.render_algorithm_comparison(controls)
-        self.render_anyscale_features()
+        self.render_training_progress()
+        #self.render_checkpoint_info()
+        self.render_performance_summary()
+        self.render_evaluation_results()
         
-        # Render footer
-        self.render_footer()
-
+        # Footer
+        st.markdown("---")
+        checkpoint_dir = Path("checkpoints")
+        single_agent_checkpoint = checkpoint_dir / "single_agent_demo"
+        has_model = single_agent_checkpoint.exists()
+        st.markdown(f"**Ray Version:** 2.49.1 | **Dashboard Mode:** {'Real Data' if has_model else 'Demo Mode'}")
 
 def main():
     """Main function to run the dashboard."""
     dashboard = TradingDashboard()
     dashboard.run()
 
-
 if __name__ == "__main__":
     main()
-

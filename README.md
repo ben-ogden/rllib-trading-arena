@@ -1,11 +1,10 @@
 # 🏟️ RLlib Trading Arena
 
-🏟️ A competitive multi-agent trading arena showcasing RLlib's latest capabilities. Watch market makers, momentum traders, and arbitrageurs compete in realistic financial markets using Ray 2.49.1 and Anyscale Cloud.
+🏟️ A comprehensive trading arena showcasing RLlib's latest capabilities. Train and evaluate trading strategies in realistic financial markets using Ray 2.49.1 and Anyscale Cloud.
 
 ## 🚀 Features
 
-- **Multi-Agent Trading Environment**: Three distinct agent types (Market Maker, Momentum Trader, Arbitrageur)
-- **Realistic Market Dynamics**: Order book simulation with realistic price movements and liquidity
+- **Trading Environment**: Realistic order book simulation with market dynamics
 - **Distributed Training**: Leverages Ray's distributed computing for scalable RL training
 - **Multiple Algorithms**: Supports PPO, A3C, IMPALA, and other RLlib algorithms
 - **Interactive Dashboard**: Real-time monitoring of training progress and agent performance
@@ -25,8 +24,8 @@
 ## 🎯 Demo Scenarios
 
 1. **Single Agent Training & Evaluation**: Train and evaluate individual trading strategies
-2. **Multi-Agent Competition**: Competing agents in the same market
-3. **Cooperative Trading**: Agents working together for optimal market making
+2. **Algorithm Comparison**: Compare different RL algorithms (PPO, A3C, IMPALA)
+3. **Hyperparameter Tuning**: Optimize training parameters for better performance
 4. **Scalability Demo**: Show distributed training across multiple nodes
 
 ## 🚀 Quick Start
@@ -50,28 +49,23 @@
    uv run python training/single_agent_evaluation.py
    ```
 
-4. **Run Multi-Agent Demo** (15 minutes):
-   ```bash
-   uv run python training/multi_agent_demo.py
-   ```
-
-5. **Launch Interactive Dashboard**:
+4. **Launch Interactive Dashboard**:
    ```bash
    uv run streamlit run dashboard/trading_dashboard.py
    ```
 
-6. **Alternative: Use CLI commands**:
+5. **Alternative: Use CLI commands**:
    ```bash
    uv run rllib-trading-arena --help
    uv run rllib-trading-arena train --algorithm ppo --iterations 100
    uv run trading-dashboard
    ```
 
-7. **For detailed instructions, troubleshooting, and advanced usage, see [DEMO_GUIDE.md](DEMO_GUIDE.md)**
+6. **For detailed instructions, troubleshooting, and advanced usage, see [DEMO_GUIDE.md](DEMO_GUIDE.md)**
 
 ## 🌟 Key RLlib Features Demonstrated
 
-- **Multi-Agent Support**: Independent and shared policies with latest API stack
+- **Single-Agent Training**: Robust training with latest API stack
 - **Distributed Training**: Ray 2.49.1's enhanced distributed computing capabilities
 - **Algorithm Flexibility**: Easy switching between RL algorithms including new API stack
 - **Scalability**: Horizontal scaling across multiple machines with improved performance

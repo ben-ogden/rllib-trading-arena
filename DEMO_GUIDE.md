@@ -1,23 +1,23 @@
 # 🏟️ RLlib Trading Arena - Complete Guide
 
-This comprehensive guide will walk you through the RLlib Trading Arena, showcasing the latest Ray 2.49.1 and RLlib capabilities in a compelling competitive multi-agent trading environment.
+This comprehensive guide will walk you through the RLlib Trading Arena, showcasing the latest Ray 2.49.1 and RLlib capabilities in a realistic trading environment.
 
 ## 🎯 What This Demo Showcases
 
 ### Core RLlib Features
-- **Multi-Agent Reinforcement Learning**: 5 different trading agents with unique strategies
+- **Single-Agent Reinforcement Learning**: Train and evaluate trading strategies
 - **Distributed Training**: Scale training across multiple workers and nodes
-- **Algorithm Comparison**: PPO, A3C, IMPALA with performance benchmarking
+- **Algorithm Support**: PPO with Ray 2.49.1
 - **Real-time Monitoring**: Interactive dashboard with live metrics
 - **Anyscale Integration**: Cloud-native deployment ready
 
 ### Trading Environment Features
 - **Realistic Market Simulation**: Order book, price movements, volatility clustering
 - **Market Events**: Flash crashes, rallies, liquidity crises, news events
-- **Agent Diversity**: Market makers, momentum traders, arbitrageurs
+- **Agent Types**: Market makers, momentum traders, arbitrageurs (single-agent training)
 - **Performance Metrics**: P&L, trading activity, market efficiency
 
-## 🚀 Quick Start (15-20 Minutes)
+## 🚀 Quick Start (10-15 Minutes)
 
 ### 1. Install Dependencies
 ```bash
@@ -38,12 +38,7 @@ uv run python training/single_agent_demo.py
 uv run python training/single_agent_evaluation.py
 ```
 
-### 4. Run Multi-Agent Demo
-```bash
-uv run python training/multi_agent_demo.py
-```
-
-### 5. Launch Dashboard
+### 4. Launch Dashboard
 ```bash
 uv run streamlit run dashboard/trading_dashboard.py
 ```
@@ -77,30 +72,17 @@ uv run streamlit run dashboard/trading_dashboard.py
   - Profit/Loss tracking with realistic trading results
   - Risk management demonstration through order cancellation
 
-### Scenario 2: Multi-Agent Competition
-**Purpose**: Showcase multi-agent RL with competing strategies
-**Duration**: 15-20 minutes
-**Command**: `uv run python training/multi_agent_demo.py`
-
-**What You'll See**:
-- 5 agents with different strategies competing
-- Market makers providing liquidity
-- Momentum traders following trends
-- Arbitrageurs exploiting price discrepancies
-- Real-time agent performance comparison
-
-### Scenario 3: Algorithm Comparison
+### Scenario 2: Algorithm Comparison
 **Purpose**: Compare different RL algorithms on the same environment
 **Duration**: 30-45 minutes
 **Command**: `uv run rllib-trading-arena train --algorithm all --iterations 100`
 
 **What You'll See**:
-- PPO vs A3C vs IMPALA performance
-- Training time comparison
-- Convergence analysis
+- PPO algorithm training (A3C/IMPALA fallback to PPO due to Ray 2.49.1 compatibility)
+- Training time and convergence analysis
 - Final performance evaluation
 
-### Scenario 4: Interactive Dashboard
+### Scenario 3: Interactive Dashboard
 **Purpose**: Monitor training progress and analyze results
 **Duration**: Ongoing
 **Command**: `uv run streamlit run dashboard/trading_dashboard.py`
@@ -272,7 +254,7 @@ config = {
 ## 📚 Learning Resources
 
 ### RLlib Documentation
-- [Multi-Agent RL](https://docs.ray.io/en/latest/rllib/rllib-multi-agent.html)
+- [Single-Agent RL](https://docs.ray.io/en/latest/rllib/rllib-env.html)
 - [Algorithm Comparison](https://docs.ray.io/en/latest/rllib/rllib-algorithms.html)
 - [Distributed Training](https://docs.ray.io/en/latest/rllib/rllib-training.html)
 

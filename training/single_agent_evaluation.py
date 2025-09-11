@@ -17,6 +17,8 @@ import os
 import sys
 import logging
 import numpy as np
+import json
+import time
 import ray
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
@@ -175,17 +177,22 @@ def run_evaluation(trainer, config, num_episodes=5):
             
             # Track actions for analysis
             action_names = ["HOLD", "BUY", "SELL", "CANCEL"]
-            action_name = action_names[int(action[0])]
-            qty = action[1]
-            price = action[2] if action[2] else "market"
+            try:
+                action_name = action_names[int(action[0])] if len(action) > 0 else "UNKNOWN"
+                qty = action[1] if len(action) > 1 else 0.0
+                price = action[2] if len(action) > 2 and action[2] is not None else "market"
+            except (IndexError, ValueError, TypeError):
+                action_name = "UNKNOWN"
+                qty = 0.0
+                price = "market"
             
             actions_taken.append({
-                'step': step,
-                'action': action_name,
-                'qty': qty,
-                'price': price,
-                'reward': reward,
-                'market_price': eval_env.market_simulator.current_price
+                'step': int(step),
+                'action': str(action_name),
+                'qty': float(qty),
+                'price': str(price) if price != "market" else "market",
+                'reward': float(reward),
+                'market_price': float(eval_env.market_simulator.current_price)
             })
             
             # Show agent's decision every 25 steps
@@ -202,14 +209,14 @@ def run_evaluation(trainer, config, num_episodes=5):
         total_trades.append(agent.total_trades)
         total_pnl.append(agent.pnl)
         
-        # Store episode details
+        # Store episode details (convert to Python types for JSON serialization)
         episode_details.append({
-            'episode': episode + 1,
-            'reward': episode_reward,
-            'trades': agent.total_trades,
-            'pnl': agent.pnl,
-            'position': agent.position,
-            'cash': agent.cash,
+            'episode': int(episode + 1),
+            'reward': float(episode_reward),
+            'trades': int(agent.total_trades),
+            'pnl': float(agent.pnl),
+            'position': float(agent.position),
+            'cash': float(agent.cash),
             'actions': actions_taken
         })
         
@@ -260,6 +267,59 @@ def analyze_performance(episode_details, total_rewards, total_trades, total_pnl)
     logger.info(f"  Average Profit/Episode: ${np.mean(total_pnl):8.2f}")
 
 
+def save_evaluation_results(episode_details, total_rewards, total_trades, total_pnl, checkpoint_path):
+    """Save evaluation results to JSON file for dashboard consumption."""
+    try:
+        # Calculate summary statistics and convert to Python floats for JSON serialization
+        avg_reward = float(np.mean(total_rewards))
+        avg_trades = float(np.mean(total_trades))
+        avg_pnl = float(np.mean(total_pnl))
+        best_reward = float(max(total_rewards))
+        best_pnl = float(max(total_pnl))
+        worst_pnl = float(min(total_pnl))
+        
+        # Count action distribution
+        all_actions = []
+        for episode in episode_details:
+            all_actions.extend([action['action'] for action in episode['actions']])
+        
+        action_counts = {}
+        if all_actions:
+            action_counts = {action: all_actions.count(action) for action in set(all_actions)}
+        
+        # Create evaluation results structure
+        evaluation_results = {
+            "evaluation_summary": {
+                "total_episodes": len(episode_details),
+                "average_reward": avg_reward,
+                "average_trades": avg_trades,
+                "average_pnl": avg_pnl,
+                "best_reward": best_reward,
+                "best_pnl": best_pnl,
+                "worst_pnl": worst_pnl,
+                "profitable_episodes": sum(1 for pnl in total_pnl if pnl > 0),
+                "success_rate": sum(1 for pnl in total_pnl if pnl > 0) / len(total_pnl) * 100,
+            },
+            "episode_details": episode_details,
+            "action_distribution": action_counts,
+            "evaluation_info": {
+                "timestamp": time.time(),
+                "model_path": checkpoint_path,
+                "evaluation_date": time.strftime("%Y-%m-%d %H:%M:%S"),
+            }
+        }
+        
+        # Save to JSON file
+        eval_file = os.path.join(checkpoint_path, "evaluation_results.json")
+        with open(eval_file, 'w') as f:
+            json.dump(evaluation_results, f, indent=2)
+        
+        logger.info(f"📊 Evaluation results saved to: {eval_file}")
+        
+    except Exception as e:
+        logger.warning(f"Could not save evaluation results: {e}")
+
+
 def run_single_agent_evaluation():
     """Main evaluation function"""
     try:
@@ -291,6 +351,9 @@ def run_single_agent_evaluation():
         
         # Analyze performance
         analyze_performance(episode_details, total_rewards, total_trades, total_pnl)
+        
+        # Save evaluation results to JSON file for dashboard
+        save_evaluation_results(episode_details, total_rewards, total_trades, total_pnl, checkpoint_path)
         
         logger.info(f"\n🎉 Evaluation completed successfully!")
         logger.info("The trained agent has been evaluated and its performance analyzed.")

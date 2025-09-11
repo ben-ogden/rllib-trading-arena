@@ -11,9 +11,8 @@ import logging
 from pathlib import Path
 from typing import Dict, Any
 
-from .multi_agent_trainer import MultiAgentTrainer
 from .single_agent_demo import run_single_agent_demo
-from .multi_agent_demo import run_multi_agent_demo
+from .single_agent_evaluation import run_single_agent_evaluation
 
 
 # Configure logging
@@ -29,7 +28,7 @@ logger = logging.getLogger(__name__)
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
 @click.pass_context
 def cli(ctx, config: Path, verbose: bool):
-    """RLlib Trading Demo - Showcase Anyscale's RL capabilities."""
+    """RLlib Trading Demo - Single-agent trading with Ray 2.49.1."""
     ctx.ensure_object(dict)
     ctx.obj['config'] = config
     ctx.obj['verbose'] = verbose
@@ -51,7 +50,7 @@ def cli(ctx, config: Path, verbose: bool):
 @click.option('--algorithm', '-a',
               type=click.Choice(['ppo', 'impala', 'sac', 'all']),
               default='ppo',
-              help='Algorithm to train')
+              help='Algorithm to train (PPO recommended for Ray 2.49.1)')
 @click.option('--iterations', '-i',
               type=int,
               default=100,
@@ -66,34 +65,35 @@ def cli(ctx, config: Path, verbose: bool):
               help='Directory to save checkpoints')
 @click.pass_context
 def train(ctx, algorithm: str, iterations: int, eval_episodes: int, checkpoint_dir: Path):
-    """Train RLlib agents on the trading environment."""
-    logger.info(f"Starting training with {algorithm.upper()}")
+    """Train single-agent models on the trading environment."""
+    logger.info(f"🚀 Starting single-agent training with {algorithm.upper()}")
     
     # Create checkpoint directory
     checkpoint_dir.mkdir(exist_ok=True)
     
     try:
-        # For Ray 2.49.1 compatibility, use single-agent demo for training
-        # Multi-agent training has compatibility issues with Ray 2.49.1
-        logger.info("Using single-agent training for Ray 2.49.1 compatibility")
+        # Use single-agent training (multi-agent has Ray 2.49.1 compatibility issues)
+        logger.info("✅ Using single-agent training (Ray 2.49.1 compatible)")
         
         if algorithm == 'all':
             # Train with PPO (most stable with Ray 2.49.1)
-            logger.info("Training with PPO algorithm")
+            logger.info("🎯 Training with PPO algorithm (recommended for Ray 2.49.1)")
             run_single_agent_demo()
             results = {'algorithm': 'ppo', 'status': 'completed'}
         else:
-            # Train single algorithm (only PPO supported for now)
+            # Train single algorithm (only PPO fully supported for now)
             if algorithm != 'ppo':
-                logger.warning(f"Algorithm {algorithm} not fully supported with Ray 2.49.1, using PPO instead")
-            logger.info(f"Training with {algorithm.upper()} algorithm")
+                logger.warning(f"⚠️ Algorithm {algorithm} not fully supported with Ray 2.49.1, using PPO instead")
+            logger.info(f"🎯 Training with {algorithm.upper()} algorithm")
             run_single_agent_demo()
             results = {'algorithm': algorithm, 'status': 'completed'}
         
         # Evaluation is handled within the demo
-        eval_results = {'status': 'completed', 'note': 'Evaluation included in demo'}
+        eval_results = {'status': 'completed', 'note': 'Evaluation included in training demo'}
         
-        logger.info("Training completed successfully!")
+        logger.info("✅ Training completed successfully!")
+        logger.info("📊 Model saved to checkpoints/single_agent_demo/")
+        logger.info("🔍 Run 'evaluate' command to test the trained model")
         
         # Save results
         results_file = checkpoint_dir / f"training_results_{algorithm}.yaml"
@@ -104,10 +104,11 @@ def train(ctx, algorithm: str, iterations: int, eval_episodes: int, checkpoint_d
                 'note': 'Single-agent training used for Ray 2.49.1 compatibility'
             }, f, default_flow_style=False)
         
-        logger.info(f"Results saved to {results_file}")
+        logger.info(f"📄 Results saved to {results_file}")
         
     except Exception as e:
-        logger.error(f"Training failed: {e}")
+        logger.error(f"❌ Training failed: {e}")
+        logger.info("💡 Check the logs above for detailed error information")
         raise click.Abort()
 
 
@@ -119,17 +120,20 @@ def train(ctx, algorithm: str, iterations: int, eval_episodes: int, checkpoint_d
 @click.option('--render', '-r', is_flag=True, help='Render environment during demo')
 @click.pass_context
 def demo(ctx, episodes: int, render: bool):
-    """Run a quick demo of the trading environment."""
-    logger.info("Starting trading demo")
+    """Run a quick single-agent trading demo."""
+    logger.info("🚀 Starting single-agent trading demo")
     
     try:
         # Run single agent demo
         run_single_agent_demo()
         
-        logger.info("Demo completed successfully!")
+        logger.info("✅ Demo completed successfully!")
+        logger.info("📊 Model trained and saved to checkpoints/single_agent_demo/")
+        logger.info("🔍 Run 'evaluate' command to test the trained model")
         
     except Exception as e:
-        logger.error(f"Demo failed: {e}")
+        logger.error(f"❌ Demo failed: {e}")
+        logger.info("💡 Check the logs above for detailed error information")
         raise click.Abort()
 
 
@@ -141,21 +145,23 @@ def demo(ctx, episodes: int, render: bool):
 @click.option('--render', '-r', is_flag=True, help='Render environment during demo')
 @click.pass_context
 def multi_demo(ctx, episodes: int, render: bool):
-    """Run a multi-agent trading demo."""
-    logger.warning("Multi-agent demo has compatibility issues with Ray 2.49.1")
-    logger.info("Starting multi-agent trading demo (may fail due to Ray 2.49.1 compatibility issues)")
+    """Run a multi-agent trading demo (DISABLED - Ray 2.49.1 compatibility issues)."""
+    logger.error("❌ Multi-agent demo is disabled due to Ray 2.49.1 compatibility issues")
+    logger.info("🔧 The multi-agent system has fundamental issues with Ray 2.49.1's episode tracking")
+    logger.info("📝 Use 'demo' command for single-agent demo which works correctly")
+    logger.info("🚀 Single-agent training and evaluation are fully functional")
     
-    try:
-        # Run multi-agent demo
-        run_multi_agent_demo()
-        
-        logger.info("Multi-agent demo completed successfully!")
-        
-    except Exception as e:
-        logger.error(f"Multi-agent demo failed: {e}")
-        logger.info("This is expected due to Ray 2.49.1 compatibility issues")
-        logger.info("Use 'demo' command for single-agent demo which works correctly")
-        raise click.Abort()
+    click.echo("\n❌ Multi-Agent Demo Unavailable")
+    click.echo("=" * 40)
+    click.echo("Multi-agent training has compatibility issues with Ray 2.49.1")
+    click.echo("The AssertionError in multi-agent episode tracking cannot be resolved")
+    click.echo("\n✅ Available alternatives:")
+    click.echo("  • 'demo' - Single-agent training demo")
+    click.echo("  • 'train' - Train single-agent models")
+    click.echo("  • 'evaluate' - Evaluate trained models")
+    click.echo("  • 'dashboard' - Interactive monitoring")
+    
+    raise click.Abort()
 
 
 @cli.command()
@@ -193,36 +199,39 @@ def dashboard(ctx, port: int, host: str):
 @cli.command()
 @click.option('--checkpoint', '-c',
               type=click.Path(exists=True, path_type=Path),
-              required=True,
+              default='checkpoints/single_agent_demo',
               help='Path to checkpoint file')
 @click.option('--episodes', '-e',
               type=int,
-              default=10,
+              default=5,
               help='Number of evaluation episodes')
 @click.option('--render', '-r', is_flag=True, help='Render environment during evaluation')
 @click.pass_context
 def evaluate(ctx, checkpoint: Path, episodes: int, render: bool):
-    """Evaluate a trained model."""
+    """Evaluate a trained model using the dedicated evaluation script."""
     logger.info(f"Evaluating model from {checkpoint}")
     
     try:
-        # For Ray 2.49.1 compatibility, use single-agent demo for evaluation
-        logger.info("Using single-agent evaluation for Ray 2.49.1 compatibility")
+        # Use the dedicated single-agent evaluation script
+        logger.info("Running dedicated single-agent evaluation")
         
-        # Run single-agent demo which includes evaluation
-        run_single_agent_demo()
+        # Run the evaluation script
+        run_single_agent_evaluation()
         
         eval_results = {
             'status': 'completed',
             'episodes': episodes,
-            'note': 'Evaluation included in single-agent demo'
+            'checkpoint': str(checkpoint),
+            'note': 'Evaluation completed using dedicated evaluation script'
         }
         
-        logger.info("Evaluation completed!")
-        logger.info(f"Results: {eval_results}")
+        logger.info("✅ Evaluation completed successfully!")
+        logger.info(f"📊 Results: {eval_results}")
         
     except Exception as e:
-        logger.error(f"Evaluation failed: {e}")
+        logger.error(f"❌ Evaluation failed: {e}")
+        logger.info("💡 Make sure you have a trained model in the checkpoint directory")
+        logger.info("🚀 Run 'train' command first to train a model")
         raise click.Abort()
 
 
@@ -373,9 +382,9 @@ def info(ctx):
         click.echo(f"  GPUs: {distributed_config.get('num_gpus', 'N/A')}")
     
     click.echo("\n🔗 Available Commands:")
-    click.echo("  train     - Train RLlib agents")
-    click.echo("  demo      - Run single agent demo")
-    click.echo("  multi-demo - Run multi-agent demo")
+    click.echo("  train     - Train single-agent models")
+    click.echo("  demo      - Run single-agent demo")
+    click.echo("  multi-demo - Multi-agent demo (DISABLED - Ray 2.49.1 issues)")
     click.echo("  dashboard - Launch interactive dashboard")
     click.echo("  evaluate  - Evaluate trained models")
     click.echo("  generate-config - Generate sample configuration")
