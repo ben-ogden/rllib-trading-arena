@@ -203,8 +203,8 @@ def dashboard(ctx, port: int, host: str):
 @cli.command()
 @click.option('--checkpoint', '-c',
               type=click.Path(exists=True, path_type=Path),
-              default='checkpoints/single_agent_market_maker',
-              help='Path to checkpoint file')
+              default=None,
+              help='Path to checkpoint file (defaults to checkpoints/single_agent_{agent_type})')
 @click.option('--agent-type', '-t',
               type=click.Choice(['market_maker', 'momentum_trader', 'arbitrageur']),
               default='market_maker',
@@ -217,6 +217,10 @@ def dashboard(ctx, port: int, host: str):
 @click.pass_context
 def evaluate(ctx, checkpoint: Path, agent_type: str, episodes: int, render: bool):
     """Evaluate a trained model using the dedicated evaluation script."""
+    # Set default checkpoint path based on agent type if not provided
+    if checkpoint is None:
+        checkpoint = Path(f'checkpoints/single_agent_{agent_type}')
+    
     logger.info(f"Evaluating model from {checkpoint}")
     
     try:
