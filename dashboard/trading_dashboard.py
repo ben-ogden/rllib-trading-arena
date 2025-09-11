@@ -176,8 +176,8 @@ class TradingDashboard:
         st.markdown('<h1 class="main-header">🚀 RLlib Trading Demo Dashboard</h1>', unsafe_allow_html=True)
         
         checkpoint_dir = Path("checkpoints")
-        single_agent_checkpoint = checkpoint_dir / "single_agent_demo"
-        has_model = single_agent_checkpoint.exists()
+        single_agent_checkpoint = self._find_latest_checkpoint(checkpoint_dir)  # Use dynamic finding
+        has_model = single_agent_checkpoint and single_agent_checkpoint.exists()
         
         col1, col2, col3 = st.columns(3)
         
