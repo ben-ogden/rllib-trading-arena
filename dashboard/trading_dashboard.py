@@ -53,6 +53,21 @@ class TradingDashboard:
             st.error(f"Error finding checkpoint directory: {e}")
             return None
     
+    def _get_agent_type_from_checkpoint(self, checkpoint_path: Optional[Path]) -> str:
+        """Extract agent type from checkpoint directory name."""
+        if not checkpoint_path:
+            return "Unknown"
+        
+        checkpoint_name = checkpoint_path.name
+        if checkpoint_name.startswith("single_agent_"):
+            agent_type = checkpoint_name.replace("single_agent_", "")
+            # Convert to title case for display
+            return agent_type.replace("_", " ").title()
+        elif checkpoint_name == "single_agent_demo":
+            return "Market Maker"  # Default for old naming
+        else:
+            return "Unknown"
+    
     def _load_metrics_data(self) -> Dict[str, Any]:
         """Load metrics data from training runs."""
         # Only return real data if it exists, otherwise return empty data
@@ -178,8 +193,9 @@ class TradingDashboard:
         checkpoint_dir = Path("checkpoints")
         single_agent_checkpoint = self._find_latest_checkpoint(checkpoint_dir)  # Use dynamic finding
         has_model = single_agent_checkpoint and single_agent_checkpoint.exists()
+        agent_type = self._get_agent_type_from_checkpoint(single_agent_checkpoint)
         
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             st.metric(
@@ -203,6 +219,20 @@ class TradingDashboard:
                 )
         
         with col3:
+            if has_model:
+                st.metric(
+                    label="Agent Type",
+                    value=agent_type,
+                    delta="Trading strategy"
+                )
+            else:
+                st.metric(
+                    label="Agent Type",
+                    value="None",
+                    delta="No model loaded"
+                )
+        
+        with col4:
             if has_model:
                 st.metric(
                     label="Dashboard Mode",

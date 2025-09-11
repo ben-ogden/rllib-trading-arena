@@ -23,16 +23,16 @@ A comprehensive trading arena showcasing RLlib's latest capabilities. Train and 
 ## ⚡ Quick Start (5 Minutes)
 
 ### 1. Install Dependencies
-```bash
-# Install uv if you haven't already
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Install project dependencies
-uv sync
-```
+   ```bash
+   # Install uv if you haven't already
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   
+   # Install project dependencies
+   uv sync
+   ```
 
 ### 2. Train & Evaluate
-```bash
+   ```bash
 # Train a trading agent
 uv run rllib-trading-arena train --iterations 100
 
@@ -46,7 +46,7 @@ uv run trading-dashboard
 ## 🎯 Complete Demo (15 Minutes)
 
 ### Step 1: Train the Agent
-```bash
+   ```bash
 # Start training (this will take 5-10 minutes)
 uv run rllib-trading-arena train --iterations 100
 
@@ -55,7 +55,7 @@ uv run rllib-trading-arena train --iterations 100
 ```
 
 ### Step 2: Evaluate Performance
-```bash
+   ```bash
 # Test the trained agent
 uv run rllib-trading-arena evaluate --episodes 5
 
@@ -64,9 +64,9 @@ uv run rllib-trading-arena evaluate --episodes 5
 ```
 
 ### Step 3: View Results in Dashboard
-```bash
+   ```bash
 # Launch the interactive dashboard
-uv run trading-dashboard
+   uv run trading-dashboard
 
 # Open your browser to http://localhost:8501
 # View training metrics and progress charts
@@ -97,15 +97,43 @@ market:
   volatility: 0.02
   max_steps_per_episode: 128
   tick_size: 0.01
+  liquidity_factor: 0.1
+  spread_min: 0.01
+  spread_max: 0.05
+```
+
+### Agent Configurations
+```yaml
+agents:
+  market_maker:
+    initial_capital: 100000
+    risk_tolerance: 0.1
+    inventory_target: 0
+    max_inventory: 1000
+    min_spread: 0.02
+    
+  momentum_trader:
+    initial_capital: 100000
+    risk_tolerance: 0.15
+    lookback_period: 20
+    momentum_threshold: 0.05
+    
+  arbitrageur:
+    initial_capital: 100000
+    risk_tolerance: 0.05
+    max_position_size: 500
+    profit_threshold: 0.01
 ```
 
 ### Training Parameters
 ```yaml
 training:
-  lr: 0.0003
-  train_batch_size: 256
+  episodes: 1000
+  max_steps_per_episode: 128
+  learning_rate: 0.0003
+  batch_size: 256
   gamma: 0.99
-  entropy_coeff: 0.01
+  tau: 0.005
 ```
 
 ### Distributed Training
@@ -114,6 +142,7 @@ distributed:
   num_workers: 4
   num_cpus_per_worker: 1
   num_gpus: 0
+  use_gpu: false
 ```
 
 ## 📈 Understanding the Results
@@ -152,6 +181,24 @@ This demo uses a **single stock** for simplicity. The agent trades one asset (no
 
 ## 🔧 Advanced Usage
 
+### Training Different Agent Types
+```bash
+# Train a Market Maker agent (default)
+uv run rllib-trading-arena train --agent-type market_maker --iterations 1000
+
+# Train a Momentum Trader agent
+uv run rllib-trading-arena train --agent-type momentum_trader --iterations 1000
+
+# Train an Arbitrageur agent
+uv run rllib-trading-arena train --agent-type arbitrageur --iterations 1000
+
+# Demo with different agents
+uv run rllib-trading-arena demo --agent-type momentum_trader --iterations 10 --render
+
+# Evaluate specific agent type
+uv run rllib-trading-arena evaluate --agent-type arbitrageur --episodes 10 --render
+```
+
 ### CLI Commands
 ```bash
 # Training options
@@ -165,12 +212,19 @@ uv run rllib-trading-arena evaluate --episodes 10 --render
 uv run trading-dashboard --port 8502
 ```
 
+### Agent Type Comparison
+| Agent Type | Strategy | Risk Tolerance | Best For |
+|------------|----------|----------------|----------|
+| **Market Maker** | Provide liquidity, capture spreads | Low (0.1) | Stable markets, consistent profits |
+| **Momentum Trader** | Follow trends, ride momentum | Medium (0.15) | Trending markets, breakout strategies |
+| **Arbitrageur** | Exploit price discrepancies | Very Low (0.05) | Efficient markets, quick profits |
+
 ### Customizing Training Parameters
 ```yaml
 # configs/trading_config.yaml
 training:
-  lr: 0.0001  # Lower learning rate for stability
-  train_batch_size: 512  # Larger batches for better gradients
+  learning_rate: 0.0001  # Lower learning rate for stability
+  batch_size: 512  # Larger batches for better gradients
   gamma: 0.95  # Shorter time horizon
   entropy_coeff: 0.05  # More exploration
 ```
