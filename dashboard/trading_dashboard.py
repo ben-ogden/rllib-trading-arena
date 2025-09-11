@@ -29,6 +29,30 @@ class TradingDashboard:
                 return yaml.safe_load(f)
         return {}
     
+    def _find_latest_checkpoint(self, checkpoint_dir: Path) -> Optional[Path]:
+        """Find the most recent single agent checkpoint directory."""
+        try:
+            # Look for directories matching single_agent_* pattern
+            single_agent_dirs = []
+            for item in checkpoint_dir.iterdir():
+                if item.is_dir() and item.name.startswith("single_agent_"):
+                    single_agent_dirs.append(item)
+            
+            if not single_agent_dirs:
+                # Fallback to old naming convention
+                old_checkpoint = checkpoint_dir / "single_agent_demo"
+                if old_checkpoint.exists():
+                    return old_checkpoint
+                return None
+            
+            # Return the most recently modified directory
+            latest_dir = max(single_agent_dirs, key=lambda x: x.stat().st_mtime)
+            return latest_dir
+            
+        except Exception as e:
+            st.error(f"Error finding checkpoint directory: {e}")
+            return None
+    
     def _load_metrics_data(self) -> Dict[str, Any]:
         """Load metrics data from training runs."""
         # Only return real data if it exists, otherwise return empty data
@@ -46,9 +70,9 @@ class TradingDashboard:
             if not checkpoint_dir.exists():
                 return None
             
-            # Check if we have a trained model
-            single_agent_checkpoint = checkpoint_dir / "single_agent_demo"
-            if single_agent_checkpoint.exists():
+            # Find the most recent single agent checkpoint directory
+            single_agent_checkpoint = self._find_latest_checkpoint(checkpoint_dir)
+            if single_agent_checkpoint and single_agent_checkpoint.exists():
                 # Check for training metrics file
                 metrics_file = single_agent_checkpoint / "training_metrics.json"
                 eval_file = single_agent_checkpoint / "evaluation_results.json"
@@ -562,8 +586,8 @@ class TradingDashboard:
         # Footer
         st.markdown("---")
         checkpoint_dir = Path("checkpoints")
-        single_agent_checkpoint = checkpoint_dir / "single_agent_demo"
-        has_model = single_agent_checkpoint.exists()
+        single_agent_checkpoint = self._find_latest_checkpoint(checkpoint_dir)
+        has_model = single_agent_checkpoint and single_agent_checkpoint.exists()
         st.markdown(f"**Ray Version:** 2.49.1 | **Dashboard Mode:** {'Real Data' if has_model else 'Demo Mode'}")
 
 def main():

@@ -26,23 +26,44 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def load_config(config_path: str = "configs/trading_config.yaml"):
+def load_config(config_path: str = "configs/trading_config.yaml", agent_type: str = "market_maker"):
     """Load configuration from YAML file."""
     try:
         with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
         
-        # Override for single agent training
-        config["agents"] = {
-            "market_maker": {
-                "count": 1,
-                "initial_capital": 100000,
-                "risk_tolerance": 0.1,
-                "inventory_target": 0,
-                "max_inventory": 1000,
-                "min_spread": 0.02,
+        # Override for single agent training with specified agent type
+        if agent_type == "market_maker":
+            config["agents"] = {
+                "market_maker": {
+                    "count": 1,
+                    "initial_capital": 100000,
+                    "risk_tolerance": 0.1,
+                    "inventory_target": 0,
+                    "max_inventory": 1000,
+                    "min_spread": 0.02,
+                }
             }
-        }
+        elif agent_type == "momentum_trader":
+            config["agents"] = {
+                "momentum_trader": {
+                    "count": 1,
+                    "initial_capital": 100000,
+                    "risk_tolerance": 0.15,
+                    "lookback_period": 20,
+                    "momentum_threshold": 0.05,
+                }
+            }
+        elif agent_type == "arbitrageur":
+            config["agents"] = {
+                "arbitrageur": {
+                    "count": 1,
+                    "initial_capital": 100000,
+                    "risk_tolerance": 0.05,
+                    "max_position_size": 500,
+                    "profit_threshold": 0.01,
+                }
+            }
         config["training"]["max_steps_per_episode"] = 128  # Match batch size requirements
         config["training"]["batch_size"] = 256  # Will be *2 in code, so 256*2=512 total
         
@@ -87,7 +108,7 @@ def create_default_config():
     }
 
 
-def run_single_agent_demo(iterations: int = 100, eval_episodes: int = 0, checkpoint_dir: str = "checkpoints/single_agent_demo", render: bool = False):
+def run_single_agent_demo(iterations: int = 100, eval_episodes: int = 0, checkpoint_dir: str = "checkpoints/single_agent_demo", render: bool = False, agent_type: str = "market_maker"):
     """Run a simple single agent trading demo.
     
     Args:
@@ -95,6 +116,7 @@ def run_single_agent_demo(iterations: int = 100, eval_episodes: int = 0, checkpo
         eval_episodes: DEPRECATED - evaluation is now separate
         checkpoint_dir: Directory to save the trained model
         render: If True, show detailed step-by-step logging during training
+        agent_type: Type of agent to train (market_maker, momentum_trader, arbitrageur)
     """
     logger.info("Starting Single Agent Trading Demo")
     logger.info("=" * 50)
@@ -133,7 +155,7 @@ def run_single_agent_demo(iterations: int = 100, eval_episodes: int = 0, checkpo
     
     try:
         # Create configuration
-        config = load_config()
+        config = load_config(agent_type=agent_type)
         
         # Create PPO configuration
         ppo_config = (

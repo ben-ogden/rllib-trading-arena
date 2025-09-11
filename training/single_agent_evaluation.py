@@ -104,24 +104,45 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def load_config(config_path: str = "configs/trading_config.yaml"):
+def load_config(config_path: str = "configs/trading_config.yaml", agent_type: str = "market_maker"):
     """Load configuration from YAML file."""
     try:
         with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
         
-        # Override for single agent training
-        config["agents"] = {
-            "market_maker": {
-                "count": 1,
-                "initial_capital": 100000,
-                "risk_tolerance": 0.1,
-                "inventory_target": 0,
-                "max_inventory": 1000,
-                "min_spread": 0.02,
+        # Override for single agent training with specified agent type
+        if agent_type == "market_maker":
+            config["agents"] = {
+                "market_maker": {
+                    "count": 1,
+                    "initial_capital": 100000,
+                    "risk_tolerance": 0.1,
+                    "inventory_target": 0,
+                    "max_inventory": 1000,
+                    "min_spread": 0.02,
+                }
             }
-        }
-        config["training"]["max_steps_per_episode"] = 500  # Shorter episodes for demo
+        elif agent_type == "momentum_trader":
+            config["agents"] = {
+                "momentum_trader": {
+                    "count": 1,
+                    "initial_capital": 100000,
+                    "risk_tolerance": 0.15,
+                    "lookback_period": 20,
+                    "momentum_threshold": 0.05,
+                }
+            }
+        elif agent_type == "arbitrageur":
+            config["agents"] = {
+                "arbitrageur": {
+                    "count": 1,
+                    "initial_capital": 100000,
+                    "risk_tolerance": 0.05,
+                    "max_position_size": 500,
+                    "profit_threshold": 0.01,
+                }
+            }
+        config["training"]["max_steps_per_episode"] = 128  # Match training configuration
         
         return config
     except FileNotFoundError:
@@ -164,12 +185,12 @@ def create_default_config():
     }
 
 
-def load_trained_model(checkpoint_path):
+def load_trained_model(checkpoint_path, agent_type="market_maker"):
     """Load a trained PPO model from checkpoint"""
     logger.info(f"Loading trained model from: {checkpoint_path}")
     
     # Load configuration
-    config = load_config()
+    config = load_config(agent_type=agent_type)
     
     # Create trainer with same configuration as training
     trainer = (
@@ -456,7 +477,7 @@ def save_evaluation_results(episode_details, total_rewards, total_trades, total_
         logger.warning(f"Could not save evaluation results: {e}")
 
 
-def run_single_agent_evaluation(checkpoint_path: str = "checkpoints/single_agent_demo", episodes: int = 5, render: bool = False, reuse_ray: bool = False):
+def run_single_agent_evaluation(checkpoint_path: str = "checkpoints/single_agent_demo", episodes: int = 5, render: bool = False, reuse_ray: bool = False, agent_type: str = "market_maker"):
     """Main evaluation function"""
     try:
         logger.info("🎯 Starting Single Agent Evaluation Demo")
@@ -479,10 +500,10 @@ def run_single_agent_evaluation(checkpoint_path: str = "checkpoints/single_agent
             return
         
         # Load configuration
-        config = load_config()
+        config = load_config(agent_type=agent_type)
         
         # Load trained model
-        trainer = load_trained_model(checkpoint_path_abs)
+        trainer = load_trained_model(checkpoint_path_abs, agent_type=agent_type)
         
         # Run evaluation
         episode_details, total_rewards, total_trades, total_pnl = run_evaluation(
