@@ -131,54 +131,51 @@ distributed:
 
 ### Key Metrics to Watch
 
-1. **Episode Reward**: Overall performance of all agents combined
-2. **Agent-Specific Rewards**: Individual agent performance
-3. **Market Efficiency**: Spread, volume, price discovery
-4. **Training Stability**: Loss curves, convergence
-5. **Algorithm Performance**: Comparison across different RL algorithms
+1. **Episode Reward**: Performance of the single market maker agent
+2. **Episode Length**: How long episodes last (target: 500 steps)
+3. **Policy Loss**: Training stability and convergence
+4. **P&L (Profit & Loss)**: Actual trading performance in evaluation
+5. **Action Distribution**: Balance of BUY, SELL, HOLD, CANCEL actions
 
 ### What Good Performance Looks Like
 
-- **Market Makers**: Consistent positive rewards from spread capture
-- **Momentum Traders**: High rewards during trending periods
-- **Arbitrageurs**: Profitable trades with low risk
-- **Overall**: Stable learning curves with improving performance
+- **Episode Rewards**: Should improve over training iterations
+- **Episode Lengths**: Should reach the full 500 steps consistently
+- **P&L**: Positive profit in evaluation runs (though this is challenging)
+- **Action Diversity**: Mix of all action types, not just HOLD
+- **Training Stability**: Smooth learning curves without wild fluctuations
 
 ## 🔧 Advanced Usage
 
-### Custom Agent Development
-```python
-from agents.base_agent import BaseTradingAgent, AgentConfig
+### Customizing Training Parameters
+```yaml
+# Edit configs/trading_config.yaml
+training:
+  episodes: 2000              # Train for more episodes
+  max_steps_per_episode: 1000 # Longer episodes
+  learning_rate: 0.0001       # Slower learning rate
+  batch_size: 512             # Larger batch size
 
-class MyCustomAgent(BaseTradingAgent):
-    def select_action(self, observation, market_data):
-        # Implement your trading strategy
-        pass
-    
-    def update_policy(self, experiences):
-        # Implement your learning algorithm
-        pass
+distributed:
+  num_workers: 8              # More parallel workers
+  num_gpus: 1                 # Use GPU if available
 ```
 
 ### Custom Market Events
 ```python
-# Add new market events in market_simulator.py
+# Add new market events in environments/market_simulator.py
 class MarketEvent(Enum):
     CUSTOM_EVENT = "custom_event"
 
-# Implement event logic in MarketSimulator
+# Implement event logic in MarketSimulator class
 ```
 
-### Distributed Training
+### Environment Customization
 ```python
-# Configure for multi-node training
-config = {
-    "distributed": {
-        "num_workers": 8,
-        "num_cpus_per_worker": 2,
-        "num_gpus": 1
-    }
-}
+# Modify environments/trading_environment.py
+# - Adjust reward function
+# - Change observation space
+# - Add new market dynamics
 ```
 
 ## ☁️ Anyscale Cloud Deployment
