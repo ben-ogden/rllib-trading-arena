@@ -320,20 +320,6 @@ def generate_config(ctx, output: Path):
             'num_cpus_per_worker': 1,
             'num_gpus': 0,
             'use_gpu': False
-        },
-        'anyscale': {
-            'cluster_name': 'rllib-trading-demo',
-            'min_workers': 2,
-            'max_workers': 8,
-            'instance_type': 'm5.large',
-            'region': 'us-west-2'
-        },
-        'monitoring': {
-            'log_level': 'INFO',
-            'metrics_interval': 100,
-            'checkpoint_frequency': 50,
-            'tensorboard': True,
-            'wandb': False
         }
     }
     

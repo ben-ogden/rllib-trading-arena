@@ -193,10 +193,12 @@ config = {
 - Ray cluster configuration
 
 ### Deployment Steps
-1. **Configure Anyscale**:
+1. **Configure Distributed Training**:
    ```bash
-   anyscale login
-   anyscale cluster create --config anyscale_config.yaml
+   # Edit configs/trading_config.yaml to adjust distributed settings
+   # num_workers: 4  # Number of parallel workers
+   # num_cpus_per_worker: 1  # CPUs per worker
+   # num_gpus: 0  # GPUs (set to 1+ if you have GPU access)
    ```
 
 2. **Deploy Training**:
@@ -263,10 +265,10 @@ config = {
 - [Ray Tune](https://docs.ray.io/en/latest/tune/index.html)
 - [Ray Serve](https://docs.ray.io/en/latest/serve/index.html)
 
-### Anyscale Resources
-- [Anyscale Platform](https://www.anyscale.com/)
-- [Cloud Deployment Guide](https://docs.anyscale.com/)
-- [Best Practices](https://docs.anyscale.com/best-practices/)
+### Distributed Training Resources
+- [Ray Distributed Training](https://docs.ray.io/en/latest/ray-core/examples/distributed_training.html)
+- [RLlib Distributed Training](https://docs.ray.io/en/latest/rllib/rllib-training.html#distributed-training)
+- [Best Practices](https://docs.ray.io/en/latest/rllib/rllib-training.html#best-practices)
 
 ## 📈 Understanding Evaluation Results
 
@@ -308,6 +310,6 @@ Trading Performance:
 
 ### Production Deployment
 1. **Model Serving**: Deploy trained models with Ray Serve
-2. **Monitoring**: Set up comprehensive monitoring and alerting
+2. **Dashboard Monitoring**: Use the built-in dashboard for real-time monitoring
 3. **CI/CD**: Automate training and deployment pipelines
-4. **Scaling**: Handle production-scale workloads
+4. **Scaling**: Handle production-scale workloads with distributed training

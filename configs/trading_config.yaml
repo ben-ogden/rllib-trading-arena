@@ -73,20 +73,4 @@ distributed:
   num_cpus_per_worker: 1
   num_gpus: 0
   use_gpu: false
-  
-# Anyscale Cloud Configuration
-anyscale:
-  cluster_name: "rllib-trading-demo"
-  min_workers: 2
-  max_workers: 8
-  instance_type: "m5.large"
-  region: "us-west-2"
-  
-# Monitoring Configuration
-monitoring:
-  log_level: "INFO"
-  metrics_interval: 100
-  checkpoint_frequency: 50
-  tensorboard: true
-  wandb: false
 

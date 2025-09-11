@@ -19,6 +19,7 @@ import logging
 import numpy as np
 import json
 import time
+import yaml
 import ray
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
@@ -36,8 +37,27 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def create_single_agent_config():
-    """Create a simplified configuration for single agent training."""
+def load_config(config_path: str = "configs/trading_config.yaml"):
+    """Load configuration from YAML file."""
+    try:
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+        
+        # Override for single agent training
+        config["agents"]["market_maker"]["count"] = 1
+        config["training"]["max_steps_per_episode"] = 500  # Shorter episodes for demo
+        
+        return config
+    except FileNotFoundError:
+        logger.warning(f"Config file {config_path} not found, using default config")
+        return create_default_config()
+    except Exception as e:
+        logger.warning(f"Error loading config: {e}, using default config")
+        return create_default_config()
+
+
+def create_default_config():
+    """Create a default configuration if YAML file is not available."""
     return {
         "market": {
             "initial_price": 100.0,
@@ -73,7 +93,7 @@ def load_trained_model(checkpoint_path):
     logger.info(f"Loading trained model from: {checkpoint_path}")
     
     # Load configuration
-    config = create_single_agent_config()
+    config = load_config()
     
     # Create trainer with same configuration as training
     trainer = (
@@ -339,7 +359,7 @@ def run_single_agent_evaluation():
             return
         
         # Load configuration
-        config = create_single_agent_config()
+        config = load_config()
         
         # Load trained model
         trainer = load_trained_model(checkpoint_path)
