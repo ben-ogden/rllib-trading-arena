@@ -76,46 +76,55 @@ uv run streamlit run dashboard/trading_dashboard.py
 ```
 
 **What You'll See in the Dashboard**:
-- Real-time training metrics and progress charts
+- Training metrics and progress charts (from saved data)
 - Detailed evaluation results with P&L analysis
 - Action distribution breakdown
 - Episode-by-episode performance data
 
 ## 🎛️ Configuration Options
 
+Edit `configs/trading_config.yaml` to customize the training environment:
+
 ### Market Parameters
 ```yaml
 market:
   initial_price: 100.0      # Starting price
-  volatility: 0.02          # Market volatility
+  volatility: 0.02          # Market volatility  
   liquidity_factor: 0.1     # Market liquidity
-  event_probability: 0.05   # Market event frequency
+  spread_min: 0.01          # Minimum bid-ask spread
+  spread_max: 0.05          # Maximum bid-ask spread
+  order_book_depth: 10      # Order book levels
+  tick_size: 0.01           # Price increment
 ```
 
-### Agent Configuration
+### Agent Configuration (Single Agent Demo)
 ```yaml
 agents:
   market_maker:
-    count: 2                # Number of market maker agents
+    count: 1                # Always 1 for single-agent demo
     initial_capital: 100000 # Starting capital
     risk_tolerance: 0.1     # Risk appetite
-    
-  momentum_trader:
-    count: 2                # Number of momentum traders
-    lookback_period: 20     # Trend analysis window
-    
-  arbitrageur:
-    count: 1                # Number of arbitrageurs
-    profit_threshold: 0.01  # Minimum profit for trades
+    inventory_target: 0     # Target inventory level
+    max_inventory: 1000     # Maximum position size
+    min_spread: 0.02        # Minimum spread for orders
 ```
 
 ### Training Parameters
 ```yaml
 training:
   episodes: 1000            # Total training episodes
-  learning_rate: 0.0003     # Learning rate
-  batch_size: 32            # Training batch size
+  max_steps_per_episode: 1000  # Steps per episode
+  learning_rate: 0.0003     # PPO learning rate
+  batch_size: 256           # Training batch size
   gamma: 0.99               # Discount factor
+```
+
+### Distributed Training
+```yaml
+distributed:
+  num_workers: 4            # Number of parallel workers
+  num_cpus_per_worker: 1    # CPUs per worker
+  num_gpus: 0               # GPUs (set to 1+ if available)
 ```
 
 ## 📈 Understanding the Results
