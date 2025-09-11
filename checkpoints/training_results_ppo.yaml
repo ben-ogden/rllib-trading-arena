@@ -1,0 +1,8 @@
+evaluation_results:
+  note: Use separate evaluate command to test the trained model
+  status: skipped
+note: Single-agent training used for Ray 2.49.1 compatibility
+training_results:
+  agent_type: market_maker
+  algorithm: ppo
+  status: completed
