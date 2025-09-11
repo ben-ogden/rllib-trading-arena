@@ -102,6 +102,20 @@ distributed:
   num_gpus: 0
 ```
 
+## 📊 Dashboard Screenshots
+
+### Training Progress
+![Training Progress](assets/training-progress.png)
+
+### Training Performance
+![Training Performance](assets/training-performance.png)
+
+### Evaluation Results
+![Evaluation Results](assets/evaluation-results.png)
+
+### Evaluation Episodes
+![Evaluation Episodes](assets/eval-episodes.png)
+
 ## 📈 Understanding the Results
 
 ### Key Metrics to Watch
