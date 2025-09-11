@@ -1,6 +1,6 @@
 # 🏟️ RLlib Trading Arena
 
-🏟️ A comprehensive trading arena showcasing RLlib's latest capabilities. Train and evaluate trading strategies in realistic financial markets using Ray 2.49.1 and Anyscale Cloud.
+🏟️ A comprehensive trading arena showcasing RLlib's latest capabilities. Train and evaluate trading strategies in realistic financial markets using Ray 2.49.1.
 
 ## 🚀 Features
 
@@ -8,7 +8,7 @@
 - **Distributed Training**: Leverages Ray's distributed computing for scalable RL training
 - **Multiple Algorithms**: Supports PPO, A3C, IMPALA, and other RLlib algorithms
 - **Interactive Dashboard**: Real-time monitoring of training progress and agent performance
-- **Anyscale Integration**: Optimized for Anyscale Cloud deployment
+- **Cloud Ready**: Optimized for cloud deployment and scaling
 
 ## 🏗️ Architecture
 
@@ -96,7 +96,7 @@ The agent should learn to be a **single-stock day trader** with market making ca
 - **Algorithm Flexibility**: Easy switching between RL algorithms including new API stack
 - **Scalability**: Horizontal scaling across multiple machines with improved performance
 - **Monitoring**: Built-in metrics, custom callbacks, and enhanced observability
-- **Anyscale Integration**: Cloud-native deployment with latest Ray features
+- **Cloud Integration**: Cloud-native deployment with latest Ray features
 - **New API Stack**: Leverages RLlib's latest modular architecture (alpha features)
 - **Enhanced Performance**: Improved training speed and memory efficiency
 - **Separate Evaluation**: Dedicated evaluation scripts for comprehensive agent testing
@@ -130,9 +130,9 @@ The project includes comprehensive evaluation tools:
 
 The demo supports various configuration options. See [DEMO_GUIDE.md](DEMO_GUIDE.md) for detailed configuration examples and options.
 
-## 🌐 Anyscale Cloud Deployment
+## 🌐 Cloud Deployment
 
-This demo is optimized for Anyscale Cloud deployment. See [DEMO_GUIDE.md](DEMO_GUIDE.md) for detailed deployment instructions and cloud benefits.
+This demo is optimized for cloud deployment. See [DEMO_GUIDE.md](DEMO_GUIDE.md) for deployment options and cloud benefits.
 
 ## 📈 Results and Insights
 

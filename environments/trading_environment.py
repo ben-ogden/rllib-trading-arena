@@ -10,11 +10,26 @@ import gymnasium as gym
 import numpy as np
 from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
+from enum import IntEnum
 import uuid
 import time
 
 from .order_book import OrderBook, Order, OrderType, OrderSide
 from .market_simulator import MarketSimulator, MarketEvent
+
+
+class ActionType(IntEnum):
+    """Action types for trading agents."""
+    HOLD = 0
+    BUY = 1
+    SELL = 2
+    CANCEL = 3
+
+
+class OrderTypeAction(IntEnum):
+    """Order type for agent actions (different from OrderType to avoid conflicts)."""
+    MARKET = 0
+    LIMIT = 1
 
 
 @dataclass
@@ -117,10 +132,10 @@ class TradingEnvironment(gym.Env):
     def _setup_spaces(self):
         """Setup action and observation spaces for RLlib compatibility."""
         # Action space: [action_type, quantity, price, order_type]
-        # action_type: 0=hold, 1=buy, 2=sell, 3=cancel
+        # action_type: ActionType enum (HOLD=0, BUY=1, SELL=2, CANCEL=3)
         # quantity: normalized quantity (0-1)
         # price: normalized price offset from mid price (-1 to 1)
-        # order_type: 0=market, 1=limit
+        # order_type: OrderTypeAction enum (MARKET=0, LIMIT=1)
         self.action_space = gym.spaces.Box(
             low=np.array([0, 0, -1, 0]),
             high=np.array([3, 1, 1, 1]),
@@ -286,20 +301,20 @@ class TradingEnvironment(gym.Env):
         agent = self.agents[agent_id]
         
         # Parse action
-        action_type = int(action[0])
+        action_type = ActionType(int(action[0]))
         quantity = float(action[1])
         price_offset = float(action[2])
-        order_type = int(action[3])
+        order_type = OrderTypeAction(int(action[3]))
         
         # Get current market conditions
         market_data = self.order_book.get_market_data()
         mid_price = market_data.get("mid_price") or self.market_simulator.current_price
         
         # Convert normalized values to actual values
-        max_quantity = min(agent.cash / mid_price, 1000) if action_type == 1 else abs(agent.position)
+        max_quantity = min(agent.cash / mid_price, 1000) if action_type == ActionType.BUY else abs(agent.position)
         actual_quantity = quantity * max_quantity
         
-        if order_type == 0:  # Market order
+        if order_type == OrderTypeAction.MARKET:  # Market order
             actual_price = None
         else:  # Limit order
             price_range = mid_price * 0.1  # 10% price range
@@ -307,11 +322,11 @@ class TradingEnvironment(gym.Env):
             actual_price = round(actual_price / self.order_book.tick_size) * self.order_book.tick_size
         
         # Execute action
-        if action_type == 1 and actual_quantity > 0:  # Buy
+        if action_type == ActionType.BUY and actual_quantity > 0:  # Buy
             self._place_buy_order(agent_id, actual_quantity, actual_price)
-        elif action_type == 2 and actual_quantity > 0:  # Sell
+        elif action_type == ActionType.SELL and actual_quantity > 0:  # Sell
             self._place_sell_order(agent_id, actual_quantity, actual_price)
-        elif action_type == 3:  # Cancel orders
+        elif action_type == ActionType.CANCEL:  # Cancel orders
             self._cancel_agent_orders(agent_id)
         
         # Store action for analysis
@@ -324,7 +339,9 @@ class TradingEnvironment(gym.Env):
         
         # Debug: Print action details occasionally
         if self.current_step % 100 == 0:
-            print(f"Step {self.current_step}: Agent {agent_id} action: type={action_type}, qty={actual_quantity:.2f}, price={actual_price}, trades={agent.total_trades}")
+            # Format price properly for display
+            price_str = f"{actual_price:.2f}" if actual_price is not None else "None"
+            print(f"Step {self.current_step}: Agent {agent_id} action: type={action_type.name}, order={order_type.name}, qty={actual_quantity:.2f}, price={price_str}, cumulative_trades={agent.total_trades}")
     
     def _place_buy_order(self, agent_id: str, quantity: float, price: Optional[float]):
         """Place a buy order for an agent."""
@@ -459,13 +476,13 @@ class TradingEnvironment(gym.Env):
             
             # BALANCED EXPLORATION REWARDS (encourage learning)
             # Reward for placing orders (encourage exploration)
-            order_placement_reward = 0.01 if agent.last_action and agent.last_action.get("action_type") in [1, 2] else 0.0
+            order_placement_reward = 0.01 if agent.last_action and agent.last_action.get("action_type") in [ActionType.BUY, ActionType.SELL] else 0.0
             
             # Reward for being active (prevent complete inactivity)
-            activity_reward = 0.005 if agent.last_action and agent.last_action.get("action_type") != 0 else 0.0
+            activity_reward = 0.005 if agent.last_action and agent.last_action.get("action_type") != ActionType.HOLD else 0.0
             
             # Small penalty for doing nothing (encourage some activity)
-            inactivity_penalty = -0.005 if agent.last_action and agent.last_action.get("action_type") == 0 else 0.0
+            inactivity_penalty = -0.005 if agent.last_action and agent.last_action.get("action_type") == ActionType.HOLD else 0.0
             
             # Reward for profitable trades (not just any trades)
             profitable_trade_reward = 0.0

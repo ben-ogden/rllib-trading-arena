@@ -9,7 +9,7 @@ This comprehensive guide will walk you through the RLlib Trading Arena, showcasi
 - **Distributed Training**: Scale training across multiple workers and nodes
 - **Algorithm Support**: PPO with Ray 2.49.1
 - **Real-time Monitoring**: Interactive dashboard with live metrics
-- **Anyscale Integration**: Cloud-native deployment ready
+- **Cloud Integration**: Cloud-native deployment ready
 
 ### Trading Environment Features
 - **Realistic Market Simulation**: Order book, price movements, volatility clustering
@@ -39,12 +39,13 @@ uv run rllib-trading-arena demo --iterations 10
 
 ### 3. Evaluate Trained Agent
 ```bash
-# Evaluate the trained model
+# Evaluate the trained model (separate from training)
 uv run rllib-trading-arena evaluate --episodes 5
 ```
 
 ### 4. Launch Dashboard
 ```bash
+# View training metrics and evaluation results
 uv run trading-dashboard
 ```
 
@@ -53,338 +54,142 @@ uv run trading-dashboard
 **`train`** - Full training suite (recommended):
 - Complete training with all configuration options
 - Saves detailed results and metrics
-- Clean separation from evaluation
+- **Training only** - evaluation is separate
 
 **`demo`** - Quick demonstration:
 - Faster execution for testing
 - Minimal configuration
+- **Training only** - evaluation is separate
 - Good for quick demos and development
 
-## 🚀 Complete Demo: Single Agent Training & Evaluation
-**Purpose**: Demonstrate basic RLlib training with a market maker agent
-**Duration**: 7-13 minutes (training + evaluation)
-
-**Step 1 - Training**:
-- **Command**: `uv run rllib-trading-arena train --iterations 100`
-- **Duration**: 5-10 minutes
-- **What You'll See**:
-  - PPO training on a market maker agent
-  - Training metrics and progress
-  - Agent learning to provide liquidity
-  - Model saved to `checkpoints/single_agent_demo/`
-
-**Step 2 - Evaluation**:
-- **Command**: `uv run rllib-trading-arena evaluate --episodes 5`
-- **Duration**: 2-3 minutes
-- **What You'll See**:
-  - Trained agent demonstrating trading strategies
-  - Diverse action distribution (BUY, SELL, HOLD, CANCEL)
-  - Performance analysis with P&L tracking
-  - Real trading behavior with risk management
-  - Step-by-step decision making with market price updates
-  - Episode-by-episode performance comparison
-  - Action distribution analysis (e.g., 65% HOLD, 17% CANCEL, 12% BUY, 5% SELL)
-  - Profit/Loss tracking with realistic trading results
-  - Risk management demonstration through order cancellation
-
-**Step 3: View Results in Dashboard**
-```bash
-uv run trading-dashboard
-```
-
-**What You'll See in the Dashboard**:
-- Training metrics and progress charts (from saved data)
-- Detailed evaluation results with P&L analysis
-- Action distribution breakdown
-- Episode-by-episode performance data
+**Note**: Both commands only train the agent. Use the separate `evaluate` command to test performance.
 
 ## 🎛️ Configuration Options
 
-Edit `configs/trading_config.yaml` to customize the training environment:
+The demo uses `configs/trading_config.yaml` for all settings. Here are the key parameters:
 
 ### Market Parameters
 ```yaml
 market:
-  initial_price: 100.0      # Starting price
-  volatility: 0.02          # Market volatility  
-  liquidity_factor: 0.1     # Market liquidity
-  spread_min: 0.01          # Minimum bid-ask spread
-  spread_max: 0.05          # Maximum bid-ask spread
-  order_book_depth: 10      # Order book levels
-  tick_size: 0.01           # Price increment
+  initial_price: 100.0
+  volatility: 0.02
+  mean_reversion: 0.1
+  max_steps_per_episode: 128
 ```
 
 ### Agent Configuration (Single Agent Demo)
 ```yaml
 agents:
   market_maker:
-    count: 1                # Always 1 for single-agent demo
-    initial_capital: 100000 # Starting capital
-    risk_tolerance: 0.1     # Risk appetite
-    inventory_target: 0     # Target inventory level
-    max_inventory: 1000     # Maximum position size
-    min_spread: 0.02        # Minimum spread for orders
+    initial_cash: 10000.0
+    max_position: 100
+    risk_tolerance: 0.1
 ```
 
 ### Training Parameters
 ```yaml
 training:
-  episodes: 1000            # Total training episodes
-  max_steps_per_episode: 1000  # Steps per episode
-  learning_rate: 0.0003     # PPO learning rate
-  batch_size: 256           # Training batch size
-  gamma: 0.99               # Discount factor
+  lr: 0.0003
+  train_batch_size: 256
+  gamma: 0.99
+  entropy_coeff: 0.01
+  minibatch_size: 64
+  rollout_fragment_length: 128
 ```
 
 ### Distributed Training
 ```yaml
 distributed:
-  num_workers: 4            # Number of parallel workers
-  num_cpus_per_worker: 1    # CPUs per worker
-  num_gpus: 0               # GPUs (set to 1+ if available)
+  num_workers: 4
+  num_cpus_per_worker: 1
+  num_gpus: 0
+```
+
+## 🚀 Complete Demo: Single Agent Training & Evaluation
+
+### Step 1: Train the Agent
+```bash
+# Start training (this will take 5-10 minutes)
+uv run rllib-trading-arena train --iterations 100
+
+# Watch the training progress in your terminal
+# The agent will learn to make trading decisions
+```
+
+### Step 2: Evaluate Performance
+```bash
+# Test the trained agent
+uv run rllib-trading-arena evaluate --episodes 5
+
+# This will show you how well the agent performs
+# Look for positive P&L and reasonable trading activity
+```
+
+### Step 3: View Results in Dashboard
+```bash
+# Launch the interactive dashboard
+uv run trading-dashboard
+
+# Open your browser to http://localhost:8501
+# View training metrics and progress charts (from saved data)
 ```
 
 ## 📈 Understanding the Results
 
 ### Key Metrics to Watch
-
-1. **Episode Reward**: Performance of the single market maker agent
-2. **Episode Length**: How long episodes last (target: 500 steps)
-3. **Policy Loss**: Training stability and convergence
-4. **P&L (Profit & Loss)**: Actual trading performance in evaluation
-5. **Action Distribution**: Balance of BUY, SELL, HOLD, CANCEL actions
+- **Episode Reward**: Should increase over time (learning)
+- **Episode Length**: Should stabilize around 128 steps
+- **Policy Loss**: Should decrease (better decision making)
+- **P&L**: Should be positive in evaluation (profitable trading)
 
 ### What Good Performance Looks Like
-
-- **Episode Rewards**: Should improve over training iterations
-- **Episode Lengths**: Should reach the full 500 steps consistently
-- **P&L**: Positive profit in evaluation runs (though this is challenging)
-- **Action Diversity**: Mix of all action types, not just HOLD
+- **Training**: Episode rewards trending upward
+- **Evaluation**: Positive P&L, reasonable trade frequency
+- **Stability**: Consistent performance across episodes
+- **Learning**: Clear improvement from random to strategic behavior
 
 ### ⚠️ Single-Stock Environment
-
-This demo uses a **single-stock trading environment** for simplicity. The agent trades one asset without diversification. In real trading, you'd typically want multiple stocks for portfolio management and risk reduction.
+This demo uses a **single stock** for simplicity. In real markets, agents would trade multiple assets, but this limitation helps focus on core RL concepts.
 
 ## 🎯 What the Agent Can Learn
 
 ### ✅ Learnable Trading Patterns
-
-- **Mean Reversion Strategy**: Price tends to revert toward $100, agent can learn to buy low/sell high
-- **Event-Based Trading**: React to market events (volatility spikes, flash crashes, news events)  
-- **Risk Management**: Learn optimal position sizes and cash management
-- **Market Making**: Provide liquidity and earn bid-ask spreads
-- **Timing**: Learn when to be active vs. passive based on market conditions
+- **Mean Reversion**: Buy low, sell high when prices deviate from trend
+- **Event-Based Trading**: React to market events (crashes, rallies)
+- **Risk Management**: Control position sizes and stop losses
+- **Market Making**: Provide liquidity and capture spreads
+- **Timing**: When to enter/exit positions
 
 ### ❌ Limitations (Not Learnable)
-
-- **No Fundamental Analysis**: No company earnings, news, or business fundamentals
-- **No Cross-Asset Relationships**: Only one stock, no portfolio diversification
-- **No Market Microstructure**: Simplified order book without real market depth
-- **No External Factors**: No economic indicators, interest rates, or macro events
-- **No Competition**: Only one agent, no other market participants to learn from
+- **Fundamental Analysis**: No company financials or news
+- **Cross-Asset Relationships**: Only single stock trading
+- **Market Microstructure**: Simplified order book
+- **External Factors**: No economic indicators or sentiment
+- **Competition**: No other agents in the market
 
 ### 🎯 Expected Learning Outcomes
-
-The agent should learn to be a **single-stock day trader** with market making capabilities, focusing on mean reversion and event-based trading strategies.
+After 100 iterations, you should see the agent developing basic trading strategies and improving its P&L performance.
 
 ## 📊 Market Simulation Mechanics
 
 ### How the Market Moves
-
-The market simulator generates realistic price movements through:
-
-1. **Random Walk**: Basic price randomness with current volatility
-2. **Mean Reversion**: Price tends to return toward initial price ($100)
-3. **Trend/Momentum**: Short-term momentum based on recent price history
-4. **Market Events**: 6 event types that create temporary price movements:
-   - **Volatility Spike**: Increased volatility, no direction bias
-   - **Liquidity Crisis**: Reduced liquidity, larger price swings
-   - **News Event**: Directional bias (up or down)
-   - **Flash Crash**: Sudden downward movement
-   - **Flash Rally**: Sudden upward movement
-   - **Normal**: No special events
+- **Mean Reversion**: Prices tend to return to average levels
+- **Volatility Clustering**: High volatility periods cluster together
+- **Market Events**: Random events cause price spikes/drops
+- **Volume Patterns**: Trading volume varies throughout episodes
 
 ### What the Agent Observes (11 features)
-
-**Market Features (7):**
-- Current price (normalized)
-- Volatility level
-- Liquidity level
-- Trading volume
-- Bid-ask spread
-- Order book depth
-- Event indicator (0/1 for normal/special event)
-
-**Agent Features (4):**
-- Cash balance
-- Current position
-- P&L
-- Number of active orders
-- **Training Stability**: Smooth learning curves without wild fluctuations
-
-## 🔧 Advanced Usage
-
-### Customizing Training Parameters
-```yaml
-# Edit configs/trading_config.yaml
-training:
-  episodes: 2000              # Train for more episodes
-  max_steps_per_episode: 1000 # Longer episodes
-  learning_rate: 0.0001       # Slower learning rate
-  batch_size: 512             # Larger batch size
-
-distributed:
-  num_workers: 8              # More parallel workers
-  num_gpus: 1                 # Use GPU if available
-```
-
-### Custom Market Events
-```python
-# Add new market events in environments/market_simulator.py
-class MarketEvent(Enum):
-    CUSTOM_EVENT = "custom_event"
-
-# Implement event logic in MarketSimulator class
-```
-
-### Environment Customization
-```python
-# Modify environments/trading_environment.py
-# - Adjust reward function
-# - Change observation space
-# - Add new market dynamics
-```
-
-## ☁️ Anyscale Cloud Deployment
-
-### Prerequisites
-- Anyscale account
-- AWS/GCP/Azure credentials
-- Ray cluster configuration
-
-### Deployment Steps
-1. **Configure Distributed Training**:
-   ```bash
-   # Edit configs/trading_config.yaml to adjust distributed settings
-   # num_workers: 4  # Number of parallel workers
-   # num_cpus_per_worker: 1  # CPUs per worker
-   # num_gpus: 0  # GPUs (set to 1+ if you have GPU access)
-   ```
-
-2. **Deploy Training**:
-   ```bash
-   uv run rllib-trading-arena train --algorithm ppo --iterations 100
-   ```
-
-3. **Monitor Progress**:
-   ```bash
-   uv run streamlit run dashboard/trading_dashboard.py
-   ```
-
-### Cloud Benefits
-- **Auto-scaling**: Automatically adjust resources based on workload
-- **Cost Optimization**: Use spot instances and auto-termination
-- **Fault Tolerance**: Automatic recovery from node failures
-- **Global Deployment**: Train across multiple regions
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-1. **Ray Initialization Error**:
-   ```bash
-   # Solution: Check Ray installation
-   uv run python -c "import ray; print(ray.__version__)"
-   ```
-
-2. **Memory Issues**:
-   ```bash
-   # Solution: Reduce batch size or workers
-   # Edit configs/trading_config.yaml
-   training:
-     batch_size: 128  # Reduce from 256
-   distributed:
-     num_workers: 2   # Reduce from 4
-   ```
-
-3. **Dashboard Not Loading**:
-   ```bash
-   # Solution: Check Streamlit installation
-   uv run streamlit --version
-   ```
-
-### Performance Optimization
-
-1. **Faster Training**:
-   - Increase `num_workers` in distributed config
-   - Use GPU if available
-   - Reduce `max_steps_per_episode`
-
-2. **Better Results**:
-   - Increase training iterations (episodes: 2000+)
-   - Tune hyperparameters (learning_rate, batch_size)
-   - Adjust reward function in trading_environment.py
-
-## 📚 Learning Resources
-
-### RLlib Documentation
-- [Single-Agent RL](https://docs.ray.io/en/latest/rllib/rllib-env.html)
-- [PPO Algorithm](https://docs.ray.io/en/latest/rllib/rllib-algorithms.html#ppo)
-- [Distributed Training](https://docs.ray.io/en/latest/rllib/rllib-training.html)
-
-### Ray Documentation
-- [Ray Core](https://docs.ray.io/en/latest/ray-core/index.html)
-- [Ray Tune](https://docs.ray.io/en/latest/tune/index.html)
-- [Ray Serve](https://docs.ray.io/en/latest/serve/index.html)
-
-### Distributed Training Resources
-- [Ray Distributed Training](https://docs.ray.io/en/latest/ray-core/examples/distributed_training.html)
-- [RLlib Distributed Training](https://docs.ray.io/en/latest/rllib/rllib-training.html#distributed-training)
-- [Best Practices](https://docs.ray.io/en/latest/rllib/rllib-training.html#best-practices)
-
-## 📈 Understanding Evaluation Results
-
-### What to Look For in Single Agent Evaluation
-
-**Good Performance Indicators**:
-- **Diverse Actions**: Agent should use all action types (BUY, SELL, HOLD, CANCEL)
-- **Risk Management**: High CANCEL percentage shows good risk management
-- **Trading Activity**: Some BUY/SELL actions indicate active market making
-- **Profitability**: Positive P&L in some episodes shows learning
-- **Consistency**: Reasonable standard deviation in rewards
-
-**Example Good Results**:
-```
-Action Distribution:
-  HOLD  : 655 ( 65.5%)  # Reasonable - not all actions need trades
-  CANCEL: 172 ( 17.2%)  # Good risk management
-  BUY   : 121 ( 12.1%)  # Active market making
-  SELL  :  52 (  5.2%)  # Profit taking
-
-Trading Performance:
-  Profitable Episodes: 2/5 (40.0%)  # Some success
-  Average Profit/Episode: $ 6600.36  # Positive average
-```
-
-**Red Flags**:
-- 100% HOLD actions (agent not learning)
-- 0% CANCEL actions (poor risk management)
-- Consistently negative P&L (poor strategy)
-- Very high standard deviation (unstable learning)
-
-## 🎉 Next Steps
-
-### Extend the Demo
-1. **Add New Agents**: Implement mean reversion, pairs trading, etc.
-2. **Complex Markets**: Multi-asset, options, futures
-3. **Advanced Features**: Risk management, portfolio optimization
-4. **Real Data**: Connect to live market data feeds
-
-### Production Deployment
-1. **Model Serving**: Deploy trained models with Ray Serve
-2. **Dashboard Monitoring**: Use the built-in dashboard for real-time monitoring
-3. **CI/CD**: Automate training and deployment pipelines
-4. **Scaling**: Handle production-scale workloads with distributed training
+1. **Current Price**: Latest market price
+2. **Price Change**: Recent price movement
+3. **Volume**: Current trading volume
+4. **Volatility**: Recent price volatility
+5. **Position**: Agent's current stock position
+6. **Cash**: Available cash balance
+7. **Portfolio Value**: Total portfolio worth
+8. **Unrealized P&L**: Profit/loss on current position
+9. **Time in Position**: How long holding current position
+10. **Market Event**: Any active market events
+11. **Risk Level**: Current market risk assessment
 
 ## 🔧 Advanced CLI Reference
 
@@ -405,3 +210,84 @@ For advanced users who need full parameter control:
 - `--host` / `-h`: Custom host (default: localhost)
 
 **Note**: Dashboard looks for models in `checkpoints/single_agent_demo/`. Use default checkpoint location for dashboard compatibility.
+
+## 🔧 Advanced Usage
+
+### Customizing Training Parameters
+```yaml
+# configs/trading_config.yaml
+training:
+  lr: 0.0001  # Lower learning rate for stability
+  train_batch_size: 512  # Larger batches for better gradients
+  gamma: 0.95  # Shorter time horizon
+  entropy_coeff: 0.05  # More exploration
+```
+
+### Custom Market Events
+```python
+# Add new market events in environments/market_simulator.py
+def _generate_market_event(self):
+    # Your custom event logic here
+    pass
+```
+
+### Environment Customization
+```python
+# Modify environments/trading_environment.py
+# - Adjust reward function
+# - Change observation space
+# - Add new market dynamics
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+- **Low Episode Rewards**: Try increasing learning rate or training iterations
+- **High Policy Loss**: Reduce learning rate or increase batch size
+- **No Learning**: Check if rewards are properly scaled
+- **Memory Issues**: Reduce batch size or number of workers
+- **Slow Training**: Increase number of workers or use GPU
+
+### Performance Optimization
+- **Batch Size**: Start with 256, adjust based on memory
+- **Workers**: Use 4-8 workers for good performance
+- **Learning Rate**: 0.0003 works well for most cases
+- **Episode Length**: 128 steps provides good balance
+
+## 📚 Learning Resources
+
+### RLlib Documentation
+- [RLlib Overview](https://docs.ray.io/en/latest/rllib/index.html)
+- [PPO Algorithm](https://docs.ray.io/en/latest/rllib/algorithms/ppo.html)
+- [Environment API](https://docs.ray.io/en/latest/rllib/rllib-env.html)
+
+### Ray Documentation
+- [Ray Core](https://docs.ray.io/en/latest/ray-core/walkthrough.html)
+- [Distributed Training](https://docs.ray.io/en/latest/ray-core/actors.html)
+
+### Distributed Training Resources
+- [Ray Cluster Setup](https://docs.ray.io/en/latest/cluster/getting-started.html)
+- [Performance Tuning](https://docs.ray.io/en/latest/ray-core/performance-tips.html)
+
+## 🎉 Next Steps
+
+### Extend the Demo
+- **Multi-Asset Trading**: Add more stocks to the environment
+- **Advanced Agents**: Implement momentum and arbitrage strategies
+- **Real Data**: Connect to live market data feeds
+- **Risk Management**: Add portfolio-level risk controls
+
+### Production Deployment
+- **Model Serving**: Deploy trained models to production
+- **Real-Time Trading**: Connect to live trading systems
+- **Monitoring**: Set up comprehensive monitoring and alerting
+- **Backtesting**: Implement robust backtesting frameworks
+
+## ☁️ Cloud Deployment
+
+### TODO: Cloud Deployment Options
+- [ ] **AWS/GCP/Azure**: Configure distributed training on cloud instances
+- [ ] **Ray Cluster**: Set up multi-node Ray clusters for scaling
+- [ ] **Container Deployment**: Docker/Kubernetes deployment options
+- [ ] **Cost Optimization**: Resource management and auto-scaling
+- [ ] **Monitoring**: Cloud-native monitoring and alerting setup
