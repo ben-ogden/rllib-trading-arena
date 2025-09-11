@@ -432,6 +432,34 @@ class TradingDashboard:
             st.metric("Profitable Episodes", f"{eval_summary.get('profitable_episodes', 0)}/{eval_summary.get('total_episodes', 0)}")
             st.metric("Average Trades", f"{eval_summary.get('average_trades', 0):.1f}")
         
+        # Portfolio Performance Section
+        portfolio_perf = eval_data.get("portfolio_performance", {})
+        if portfolio_perf:
+            st.subheader("💼 Portfolio Performance")
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                avg_portfolio = portfolio_perf.get('average_portfolio_value', 0)
+                portfolio_std = portfolio_perf.get('portfolio_value_std', 0)
+                st.metric("Average Portfolio Value", f"${avg_portfolio:,.2f}", f"±${portfolio_std:,.2f}")
+            
+            with col2:
+                best_portfolio = portfolio_perf.get('best_portfolio_value', 0)
+                worst_portfolio = portfolio_perf.get('worst_portfolio_value', 0)
+                st.metric("Best Portfolio Value", f"${best_portfolio:,.2f}")
+                st.metric("Worst Portfolio Value", f"${worst_portfolio:,.2f}")
+            
+            with col3:
+                avg_return = portfolio_perf.get('average_return_pct', 0)
+                return_std = portfolio_perf.get('return_std_pct', 0)
+                st.metric("Average Return", f"{avg_return:.2f}%", f"±{return_std:.2f}%")
+            
+            with col4:
+                best_return = portfolio_perf.get('best_return_pct', 0)
+                worst_return = portfolio_perf.get('worst_return_pct', 0)
+                st.metric("Best Return", f"{best_return:.2f}%")
+                st.metric("Worst Return", f"{worst_return:.2f}%")
+        
         # Action distribution
         st.subheader("📊 Action Distribution")
         if action_dist:
@@ -457,10 +485,9 @@ class TradingDashboard:
         # Episode details
         episode_details = eval_data.get("episode_details", [])
         if episode_details:
-            st.subheader("📋 Episode Details")
+            st.subheader("📋 Episode Summary")
             
             # Create a DataFrame for better display
-            import pandas as pd
             df_data = []
             for episode in episode_details:
                 df_data.append({
@@ -469,12 +496,57 @@ class TradingDashboard:
                     "P&L": f"${episode.get('pnl', 0):,.2f}",
                     "Trades": episode.get("trades", 0),
                     "Position": f"{episode.get('position', 0):.2f}",
-                    "Cash": f"${episode.get('cash', 0):,.2f}"
+                    "Cash": f"${episode.get('cash', 0):,.2f}",
+                    "Portfolio Value": f"${episode.get('total_portfolio_value', 0):,.2f}"
                 })
             
             if df_data:
                 df = pd.DataFrame(df_data)
                 st.dataframe(df, use_container_width=True)
+            
+            # Detailed step-by-step actions
+            st.subheader("🔍 Detailed Episode Actions")
+            
+            # Episode selector
+            episode_options = [f"Episode {ep.get('episode', 0)}" for ep in episode_details]
+            selected_episode = st.selectbox("Select Episode to View:", episode_options)
+            
+            if selected_episode:
+                episode_num = int(selected_episode.split()[-1]) - 1
+                if 0 <= episode_num < len(episode_details):
+                    episode = episode_details[episode_num]
+                    actions = episode.get("actions", [])
+                    
+                    if actions:
+                        # Create detailed actions DataFrame
+                        actions_df = pd.DataFrame(actions)
+                        actions_df = actions_df.rename(columns={
+                            'step': 'Step',
+                            'action': 'Action',
+                            'qty': 'Quantity',
+                            'price': 'Price',
+                            'reward': 'Reward',
+                            'market_price': 'Market Price'
+                        })
+                        
+                        # Format the DataFrame
+                        actions_df['Market Price'] = actions_df['Market Price'].apply(lambda x: f"${x:.2f}")
+                        actions_df['Reward'] = actions_df['Reward'].apply(lambda x: f"{x:.3f}")
+                        
+                        st.dataframe(actions_df, use_container_width=True, height=400)
+                        
+                        # Show episode summary
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Total Steps", len(actions))
+                        with col2:
+                            st.metric("Total Reward", f"{episode.get('reward', 0):.2f}")
+                        with col3:
+                            st.metric("Final P&L", f"${episode.get('pnl', 0):,.2f}")
+                        with col4:
+                            st.metric("Total Trades", episode.get("trades", 0))
+                    else:
+                        st.info("No detailed actions available for this episode.")
     
     def run(self):
         """Run the complete dashboard."""

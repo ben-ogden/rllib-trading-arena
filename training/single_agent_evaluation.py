@@ -398,6 +398,11 @@ def save_evaluation_results(episode_details, total_rewards, total_trades, total_
         best_pnl = float(max(total_pnl))
         worst_pnl = float(min(total_pnl))
         
+        # Calculate portfolio performance metrics
+        portfolio_values = [ep['total_portfolio_value'] for ep in episode_details]
+        initial_capital = 100000  # Starting capital
+        portfolio_returns = [(pv - initial_capital) / initial_capital * 100 for pv in portfolio_values]
+        
         # Count action distribution
         all_actions = []
         for episode in episode_details:
@@ -419,6 +424,17 @@ def save_evaluation_results(episode_details, total_rewards, total_trades, total_
                 "worst_pnl": worst_pnl,
                 "profitable_episodes": sum(1 for pnl in total_pnl if pnl > 0),
                 "success_rate": sum(1 for pnl in total_pnl if pnl > 0) / len(total_pnl) * 100,
+            },
+            "portfolio_performance": {
+                "average_portfolio_value": float(np.mean(portfolio_values)),
+                "portfolio_value_std": float(np.std(portfolio_values)),
+                "best_portfolio_value": float(max(portfolio_values)),
+                "worst_portfolio_value": float(min(portfolio_values)),
+                "average_return_pct": float(np.mean(portfolio_returns)),
+                "return_std_pct": float(np.std(portfolio_returns)),
+                "best_return_pct": float(max(portfolio_returns)),
+                "worst_return_pct": float(min(portfolio_returns)),
+                "initial_capital": initial_capital,
             },
             "episode_details": episode_details,
             "action_distribution": action_counts,
