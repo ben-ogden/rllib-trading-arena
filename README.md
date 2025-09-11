@@ -28,6 +28,32 @@
 3. **Hyperparameter Tuning**: Optimize training parameters for better performance
 4. **Scalability Demo**: Show distributed training across multiple nodes
 
+## ⚠️ Important Note
+
+This demo uses a **single-stock trading environment** for simplicity. The agent trades one asset (no stock symbols or diversification). This keeps the demo focused and easy to understand, but in real trading you'd typically want multiple assets for portfolio diversification.
+
+## 🎯 What the Agent Can Learn
+
+### ✅ Learnable Trading Patterns
+
+- **Mean Reversion Strategy**: Price tends to revert toward $100, agent can learn to buy low/sell high
+- **Event-Based Trading**: React to market events (volatility spikes, flash crashes, news events)
+- **Risk Management**: Learn optimal position sizes and cash management
+- **Market Making**: Provide liquidity and earn bid-ask spreads
+- **Timing**: Learn when to be active vs. passive based on market conditions
+
+### ❌ Limitations (Not Learnable)
+
+- **No Fundamental Analysis**: No company earnings, news, or business fundamentals
+- **No Cross-Asset Relationships**: Only one stock, no portfolio diversification
+- **No Market Microstructure**: Simplified order book without real market depth
+- **No External Factors**: No economic indicators, interest rates, or macro events
+- **No Competition**: Only one agent, no other market participants to learn from
+
+### 🎯 Expected Learning Outcomes
+
+The agent should learn to be a **single-stock day trader** with market making capabilities, focusing on mean reversion and event-based trading strategies.
+
 ## 🚀 Quick Start
 
 1. **Install Dependencies with uv**:

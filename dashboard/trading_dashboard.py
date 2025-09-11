@@ -208,7 +208,7 @@ class TradingDashboard:
             - The model was trained but metrics weren't saved to disk
             
             **To see training progress:**
-            1. Run training with logging enabled: `uv run python training/single_agent_demo.py`
+            1. Run training with detailed logging: `uv run rllib-trading-arena train --iterations 100 --render`
             2. Watch the terminal output for real-time metrics
             3. Use Ray Dashboard at http://127.0.0.1:8265 during training
             """)
@@ -333,7 +333,7 @@ class TradingDashboard:
             
         else:
             st.warning("⚠️ No trained model found")
-            st.info("💡 To train a model, run: `uv run python training/single_agent_demo.py`")
+            st.info("💡 To train a model, run: `uv run rllib-trading-arena train --iterations 100`")
             
             st.markdown("**Training will:**")
             st.markdown("- 🚀 Train a market maker agent using PPO")
@@ -352,8 +352,8 @@ class TradingDashboard:
             st.info("📝 **No training data available**")
             st.markdown("""
             **To get training metrics:**
-            1. Run training: `uv run python training/single_agent_demo.py`
-            2. Run evaluation: `uv run python training/single_agent_evaluation.py`
+            1. Run training: `uv run rllib-trading-arena train --iterations 100`
+            2. Run evaluation: `uv run rllib-trading-arena evaluate --episodes 5`
             3. Refresh this dashboard
             """)
             return
@@ -404,8 +404,8 @@ class TradingDashboard:
             st.info("📝 **No evaluation results available**")
             st.markdown("""
             **To see evaluation results:**
-            1. Run training: `uv run python training/single_agent_demo.py`
-            2. Run evaluation: `uv run python training/single_agent_evaluation.py`
+            1. Run training: `uv run rllib-trading-arena train --iterations 100`
+            2. Run evaluation: `uv run rllib-trading-arena evaluate --episodes 5`
             3. Refresh this dashboard
             """)
             return

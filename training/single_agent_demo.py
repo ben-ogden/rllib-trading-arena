@@ -33,8 +33,18 @@ def load_config(config_path: str = "configs/trading_config.yaml"):
             config = yaml.safe_load(f)
         
         # Override for single agent training
-        config["agents"]["market_maker"]["count"] = 1
-        config["training"]["max_steps_per_episode"] = 500  # Shorter episodes for demo
+        config["agents"] = {
+            "market_maker": {
+                "count": 1,
+                "initial_capital": 100000,
+                "risk_tolerance": 0.1,
+                "inventory_target": 0,
+                "max_inventory": 1000,
+                "min_spread": 0.02,
+            }
+        }
+        config["training"]["max_steps_per_episode"] = 128  # Match batch size requirements
+        config["training"]["batch_size"] = 256  # Will be *2 in code, so 256*2=512 total
         
         return config
     except FileNotFoundError:
@@ -77,8 +87,15 @@ def create_default_config():
     }
 
 
-def run_single_agent_demo():
-    """Run a simple single agent trading demo."""
+def run_single_agent_demo(iterations: int = 100, eval_episodes: int = 10, checkpoint_dir: str = "checkpoints/single_agent_demo", render: bool = False):
+    """Run a simple single agent trading demo.
+    
+    Args:
+        iterations: Number of training iterations (calls to trainer.train())
+        eval_episodes: Number of evaluation episodes to run after training
+        checkpoint_dir: Directory to save the trained model
+        render: If True, show detailed step-by-step logging during training
+    """
     logger.info("Starting Single Agent Trading Demo")
     logger.info("=" * 50)
     
@@ -148,7 +165,7 @@ def run_single_agent_demo():
             .env_runners(
                 num_env_runners=config["distributed"]["num_workers"],
                 num_cpus_per_env_runner=config["distributed"]["num_cpus_per_worker"],
-                rollout_fragment_length=config["training"]["max_steps_per_episode"],  # Ensure episodes complete
+                rollout_fragment_length=config["training"]["max_steps_per_episode"],  # Use config value
             )
             .resources(
                 num_gpus=config["distributed"]["num_gpus"],
@@ -170,9 +187,17 @@ def run_single_agent_demo():
         
         # Training loop
         training_results = []  # Collect training results for metrics saving
-        for i in range(100):  # More iterations for better results  # Reduced iterations for demo
+        for i in range(iterations):  # Use parameterized iterations
             result = trainer.train()
             training_results.append(result)  # Store each training result
+            
+            # Show detailed progress if render is enabled
+            if render:
+                logger.info(f"Training iteration {i+1}/{iterations} completed")
+                logger.info(f"  Environment steps: {result['env_runners']['num_env_steps_sampled']}")
+                logger.info(f"  Episodes completed: {result['env_runners']['num_episodes']}")
+                logger.info(f"  Policy loss: {result['learners']['default_policy']['policy_loss']:.4f}")
+                logger.info(f"  Value function loss: {result['learners']['default_policy']['vf_loss']:.4f}")
             
             if i % 10 == 0:
                 logger.info(f"Iteration {i}:")
@@ -193,8 +218,8 @@ def run_single_agent_demo():
         
         # Save the trained model
         import os
-        checkpoint_dir = os.path.abspath("checkpoints/single_agent_demo")
-        checkpoint_path = trainer.save(checkpoint_dir)
+        checkpoint_dir_abs = os.path.abspath(checkpoint_dir)
+        checkpoint_path = trainer.save(checkpoint_dir_abs)
         logger.info(f"Model saved to: {checkpoint_path}")
         
         # Save training metrics for dashboard
@@ -204,8 +229,14 @@ def run_single_agent_demo():
         logger.info("\n✅ Training completed successfully!")
         logger.info("The agent has been trained and the model has been saved.")
         logger.info("Training metrics have been saved for the dashboard.")
-        logger.info("You can now use the trained model for trading or further evaluation.")
         
+        # Run evaluation if requested
+        if eval_episodes > 0:
+            logger.info(f"\nRunning evaluation with {eval_episodes} episodes...")
+            from .single_agent_evaluation import run_single_agent_evaluation
+            run_single_agent_evaluation(checkpoint_path=checkpoint_dir, episodes=eval_episodes)
+        
+        logger.info("You can now use the trained model for trading or further evaluation.")
         logger.info("\nDemo completed successfully!")
         
     except Exception as e:

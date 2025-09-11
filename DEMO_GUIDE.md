@@ -30,34 +30,52 @@ uv sync
 
 ### 2. Train Single Agent
 ```bash
-uv run python training/single_agent_demo.py
+# Full training with evaluation (recommended)
+uv run rllib-trading-arena train --iterations 100 --eval-episodes 5
+
+# Quick demo (faster, no evaluation)
+uv run rllib-trading-arena demo --iterations 10
 ```
 
 ### 3. Evaluate Trained Agent
 ```bash
-uv run python training/single_agent_evaluation.py
+# Evaluate the trained model
+uv run rllib-trading-arena evaluate --episodes 5
 ```
 
 ### 4. Launch Dashboard
 ```bash
-uv run streamlit run dashboard/trading_dashboard.py
+uv run trading-dashboard
 ```
+
+## 🎯 Train vs Demo Commands
+
+**`train`** - Full training suite (recommended):
+- Includes evaluation after training
+- More configuration options
+- Saves detailed results
+
+**`demo`** - Quick demonstration:
+- Faster execution
+- No evaluation
+- Good for testing and demos
 
 ## 🚀 Complete Demo: Single Agent Training & Evaluation
 **Purpose**: Demonstrate basic RLlib training with a market maker agent
 **Duration**: 7-13 minutes (training + evaluation)
 
 **Step 1 - Training**:
-- **Command**: `uv run python training/single_agent_demo.py`
+- **Command**: `uv run rllib-trading-arena train --iterations 100 --eval-episodes 5`
 - **Duration**: 5-10 minutes
 - **What You'll See**:
   - PPO training on a market maker agent
-  - Real-time training metrics
+  - Training metrics and progress
   - Agent learning to provide liquidity
   - Model saved to `checkpoints/single_agent_demo/`
+  - Automatic evaluation after training
 
-**Step 2 - Evaluation**:
-- **Command**: `uv run python training/single_agent_evaluation.py`
+**Step 2 - Evaluation** (if not done automatically):
+- **Command**: `uv run rllib-trading-arena evaluate --episodes 5`
 - **Duration**: 2-3 minutes
 - **What You'll See**:
   - Trained agent demonstrating trading strategies
@@ -72,7 +90,7 @@ uv run streamlit run dashboard/trading_dashboard.py
 
 **Step 3: View Results in Dashboard**
 ```bash
-uv run streamlit run dashboard/trading_dashboard.py
+uv run trading-dashboard
 ```
 
 **What You'll See in the Dashboard**:
@@ -143,6 +161,66 @@ distributed:
 - **Episode Lengths**: Should reach the full 500 steps consistently
 - **P&L**: Positive profit in evaluation runs (though this is challenging)
 - **Action Diversity**: Mix of all action types, not just HOLD
+
+### ⚠️ Single-Stock Environment
+
+This demo uses a **single-stock trading environment** for simplicity. The agent trades one asset without diversification. In real trading, you'd typically want multiple stocks for portfolio management and risk reduction.
+
+## 🎯 What the Agent Can Learn
+
+### ✅ Learnable Trading Patterns
+
+- **Mean Reversion Strategy**: Price tends to revert toward $100, agent can learn to buy low/sell high
+- **Event-Based Trading**: React to market events (volatility spikes, flash crashes, news events)  
+- **Risk Management**: Learn optimal position sizes and cash management
+- **Market Making**: Provide liquidity and earn bid-ask spreads
+- **Timing**: Learn when to be active vs. passive based on market conditions
+
+### ❌ Limitations (Not Learnable)
+
+- **No Fundamental Analysis**: No company earnings, news, or business fundamentals
+- **No Cross-Asset Relationships**: Only one stock, no portfolio diversification
+- **No Market Microstructure**: Simplified order book without real market depth
+- **No External Factors**: No economic indicators, interest rates, or macro events
+- **No Competition**: Only one agent, no other market participants to learn from
+
+### 🎯 Expected Learning Outcomes
+
+The agent should learn to be a **single-stock day trader** with market making capabilities, focusing on mean reversion and event-based trading strategies.
+
+## 📊 Market Simulation Mechanics
+
+### How the Market Moves
+
+The market simulator generates realistic price movements through:
+
+1. **Random Walk**: Basic price randomness with current volatility
+2. **Mean Reversion**: Price tends to return toward initial price ($100)
+3. **Trend/Momentum**: Short-term momentum based on recent price history
+4. **Market Events**: 6 event types that create temporary price movements:
+   - **Volatility Spike**: Increased volatility, no direction bias
+   - **Liquidity Crisis**: Reduced liquidity, larger price swings
+   - **News Event**: Directional bias (up or down)
+   - **Flash Crash**: Sudden downward movement
+   - **Flash Rally**: Sudden upward movement
+   - **Normal**: No special events
+
+### What the Agent Observes (11 features)
+
+**Market Features (7):**
+- Current price (normalized)
+- Volatility level
+- Liquidity level
+- Trading volume
+- Bid-ask spread
+- Order book depth
+- Event indicator (0/1 for normal/special event)
+
+**Agent Features (4):**
+- Cash balance
+- Current position
+- P&L
+- Number of active orders
 - **Training Stability**: Smooth learning curves without wild fluctuations
 
 ## 🔧 Advanced Usage
@@ -196,7 +274,7 @@ class MarketEvent(Enum):
 
 2. **Deploy Training**:
    ```bash
-   uv run rllib-trading-arena train --algorithm ppo --iterations 1000
+   uv run rllib-trading-arena train --algorithm ppo --iterations 100
    ```
 
 3. **Monitor Progress**:
@@ -308,3 +386,24 @@ Trading Performance:
 2. **Dashboard Monitoring**: Use the built-in dashboard for real-time monitoring
 3. **CI/CD**: Automate training and deployment pipelines
 4. **Scaling**: Handle production-scale workloads with distributed training
+
+## 🔧 Advanced CLI Reference
+
+For advanced users who need full parameter control:
+
+### Training Parameters
+- `--iterations` / `-i`: Number of training iterations
+- `--eval-episodes` / `-e`: Number of evaluation episodes after training
+- `--checkpoint-dir` / `-d`: Custom directory to save checkpoints
+- `--algorithm` / `-a`: Algorithm choice (ppo/impala/sac/all)
+
+### Evaluation Parameters
+- `--episodes` / `-e`: Number of evaluation episodes
+- `--checkpoint` / `-c`: Path to specific checkpoint file
+- `--render` / `-r`: Show detailed step-by-step progress
+
+### Dashboard Parameters
+- `--port` / `-p`: Custom port (default: 8501)
+- `--host` / `-h`: Custom host (default: localhost)
+
+**Note**: Dashboard looks for models in `checkpoints/single_agent_demo/`. Use default checkpoint location for dashboard compatibility.

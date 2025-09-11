@@ -45,6 +45,9 @@ class MarketSimulator:
     - Liquidity variations
     - Market events (news, crashes, rallies)
     - Volume patterns
+    
+    Note: This simulator tracks a single asset for simplicity. In production,
+    you'd typically want multiple assets for portfolio diversification.
     """
     
     def __init__(self, 

@@ -54,15 +54,15 @@ def cli(ctx, config: Path, verbose: bool):
 @click.option('--iterations', '-i',
               type=int,
               default=100,
-              help='Number of training iterations')
+              help='Number of training iterations (calls to trainer.train())')
 @click.option('--eval-episodes', '-e',
               type=int,
               default=10,
-              help='Number of evaluation episodes')
+              help='Number of evaluation episodes to run after training')
 @click.option('--checkpoint-dir', '-d',
               type=click.Path(path_type=Path),
               default='checkpoints',
-              help='Directory to save checkpoints')
+              help='Directory to save model checkpoints')
 @click.pass_context
 def train(ctx, algorithm: str, iterations: int, eval_episodes: int, checkpoint_dir: Path):
     """Train single-agent models on the trading environment."""
@@ -78,14 +78,14 @@ def train(ctx, algorithm: str, iterations: int, eval_episodes: int, checkpoint_d
         if algorithm == 'all':
             # Train with PPO (most stable with Ray 2.49.1)
             logger.info("🎯 Training with PPO algorithm (recommended for Ray 2.49.1)")
-            run_single_agent_demo()
+            run_single_agent_demo(iterations=iterations, eval_episodes=eval_episodes, checkpoint_dir=str(checkpoint_dir / "single_agent_demo"))
             results = {'algorithm': 'ppo', 'status': 'completed'}
         else:
             # Train single algorithm (only PPO fully supported for now)
             if algorithm != 'ppo':
                 logger.warning(f"⚠️ Algorithm {algorithm} not fully supported with Ray 2.49.1, using PPO instead")
             logger.info(f"🎯 Training with {algorithm.upper()} algorithm")
-            run_single_agent_demo()
+            run_single_agent_demo(iterations=iterations, eval_episodes=eval_episodes, checkpoint_dir=str(checkpoint_dir / "single_agent_demo"))
             results = {'algorithm': algorithm, 'status': 'completed'}
         
         # Evaluation is handled within the demo
@@ -113,19 +113,19 @@ def train(ctx, algorithm: str, iterations: int, eval_episodes: int, checkpoint_d
 
 
 @cli.command()
-@click.option('--episodes', '-e',
+@click.option('--iterations', '-i',
               type=int,
               default=5,
-              help='Number of demo episodes')
-@click.option('--render', '-r', is_flag=True, help='Render environment during demo')
+              help='Number of training iterations for the demo')
+@click.option('--render', '-r', is_flag=True, help='Show detailed step-by-step training progress')
 @click.pass_context
-def demo(ctx, episodes: int, render: bool):
+def demo(ctx, iterations: int, render: bool):
     """Run a quick single-agent trading demo."""
     logger.info("🚀 Starting single-agent trading demo")
     
     try:
         # Run single agent demo
-        run_single_agent_demo()
+        run_single_agent_demo(iterations=iterations, eval_episodes=0, render=render)  # Use iterations and render parameters
         
         logger.info("✅ Demo completed successfully!")
         logger.info("📊 Model trained and saved to checkpoints/single_agent_demo/")
@@ -204,8 +204,8 @@ def dashboard(ctx, port: int, host: str):
 @click.option('--episodes', '-e',
               type=int,
               default=5,
-              help='Number of evaluation episodes')
-@click.option('--render', '-r', is_flag=True, help='Render environment during evaluation')
+              help='Number of evaluation episodes to run')
+@click.option('--render', '-r', is_flag=True, help='Show detailed step-by-step evaluation progress')
 @click.pass_context
 def evaluate(ctx, checkpoint: Path, episodes: int, render: bool):
     """Evaluate a trained model using the dedicated evaluation script."""
@@ -216,7 +216,7 @@ def evaluate(ctx, checkpoint: Path, episodes: int, render: bool):
         logger.info("Running dedicated single-agent evaluation")
         
         # Run the evaluation script
-        run_single_agent_evaluation()
+        run_single_agent_evaluation(checkpoint_path=str(checkpoint), episodes=episodes, render=render)
         
         eval_results = {
             'status': 'completed',

@@ -44,7 +44,16 @@ def load_config(config_path: str = "configs/trading_config.yaml"):
             config = yaml.safe_load(f)
         
         # Override for single agent training
-        config["agents"]["market_maker"]["count"] = 1
+        config["agents"] = {
+            "market_maker": {
+                "count": 1,
+                "initial_capital": 100000,
+                "risk_tolerance": 0.1,
+                "inventory_target": 0,
+                "max_inventory": 1000,
+                "min_spread": 0.02,
+            }
+        }
         config["training"]["max_steps_per_episode"] = 500  # Shorter episodes for demo
         
         return config
@@ -230,6 +239,11 @@ def run_evaluation(trainer, config, num_episodes=5):
         total_pnl.append(agent.pnl)
         
         # Store episode details (convert to Python types for JSON serialization)
+        # Calculate portfolio metrics
+        current_price = eval_env.market_simulator.current_price
+        position_value = agent.position * current_price
+        total_portfolio_value = agent.cash + position_value
+        
         episode_details.append({
             'episode': int(episode + 1),
             'reward': float(episode_reward),
@@ -237,16 +251,26 @@ def run_evaluation(trainer, config, num_episodes=5):
             'pnl': float(agent.pnl),
             'position': float(agent.position),
             'cash': float(agent.cash),
+            'position_value': float(position_value),
+            'total_portfolio_value': float(total_portfolio_value),
+            'market_price': float(current_price),
             'actions': actions_taken
         })
         
         logger.info(f"\nEpisode {episode + 1} Results:")
         logger.info(f"  Total Reward: {episode_reward:8.2f}")
+        # Calculate total portfolio value
+        current_price = eval_env.market_simulator.current_price
+        position_value = agent.position * current_price
+        total_portfolio_value = agent.cash + position_value
+        
         logger.info(f"  Total Trades: {agent.total_trades:8d}")
         logger.info(f"  Final P&L:    ${agent.pnl:8.2f}")
         logger.info(f"  Final Position: {agent.position:8.2f}")
         logger.info(f"  Final Cash:     ${agent.cash:8.2f}")
-        logger.info(f"  Market Price:   ${eval_env.market_simulator.current_price:8.2f}")
+        logger.info(f"  Position Value: ${position_value:8.2f}")
+        logger.info(f"  Total Portfolio: ${total_portfolio_value:8.2f}")
+        logger.info(f"  Market Price:   ${current_price:8.2f}")
     
     return episode_details, total_rewards, total_trades, total_pnl
 
@@ -264,6 +288,19 @@ def analyze_performance(episode_details, total_rewards, total_trades, total_pnl)
     logger.info(f"Best Episode Reward: {max(total_rewards):8.2f}")
     logger.info(f"Best Episode P&L:    ${max(total_pnl):8.2f}")
     logger.info(f"Worst Episode P&L:   ${min(total_pnl):8.2f}")
+    
+    # Portfolio value statistics
+    portfolio_values = [ep['total_portfolio_value'] for ep in episode_details]
+    initial_capital = 100000  # Assuming this is the starting capital
+    portfolio_returns = [(pv - initial_capital) / initial_capital * 100 for pv in portfolio_values]
+    
+    logger.info(f"\nPortfolio Performance:")
+    logger.info(f"Average Portfolio Value: ${np.mean(portfolio_values):8.2f} ± ${np.std(portfolio_values):6.2f}")
+    logger.info(f"Best Portfolio Value:    ${max(portfolio_values):8.2f}")
+    logger.info(f"Worst Portfolio Value:   ${min(portfolio_values):8.2f}")
+    logger.info(f"Average Return:          {np.mean(portfolio_returns):6.2f}% ± {np.std(portfolio_returns):5.2f}%")
+    logger.info(f"Best Return:             {max(portfolio_returns):6.2f}%")
+    logger.info(f"Worst Return:            {min(portfolio_returns):6.2f}%")
     
     # Action analysis
     all_actions = []
@@ -340,7 +377,7 @@ def save_evaluation_results(episode_details, total_rewards, total_trades, total_
         logger.warning(f"Could not save evaluation results: {e}")
 
 
-def run_single_agent_evaluation():
+def run_single_agent_evaluation(checkpoint_path: str = "checkpoints/single_agent_demo", episodes: int = 5, render: bool = False):
     """Main evaluation function"""
     try:
         logger.info("🎯 Starting Single Agent Evaluation Demo")
@@ -352,8 +389,8 @@ def run_single_agent_evaluation():
             logger.info("✅ Ray initialized successfully!")
         
         # Check if checkpoint exists
-        checkpoint_path = os.path.abspath("checkpoints/single_agent_demo")
-        if not os.path.exists(checkpoint_path):
+        checkpoint_path_abs = os.path.abspath(checkpoint_path)
+        if not os.path.exists(checkpoint_path_abs):
             logger.error(f"❌ Checkpoint not found at: {checkpoint_path}")
             logger.error("Please run 'uv run python training/single_agent_demo.py' first to train a model.")
             return
@@ -366,7 +403,7 @@ def run_single_agent_evaluation():
         
         # Run evaluation
         episode_details, total_rewards, total_trades, total_pnl = run_evaluation(
-            trainer, config, num_episodes=5
+            trainer, config, num_episodes=episodes
         )
         
         # Analyze performance
