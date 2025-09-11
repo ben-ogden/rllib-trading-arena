@@ -43,9 +43,7 @@ uv run python training/single_agent_evaluation.py
 uv run streamlit run dashboard/trading_dashboard.py
 ```
 
-## 📊 Demo Scenarios
-
-### Scenario 1: Single Agent Training & Evaluation
+## 🚀 Complete Demo: Single Agent Training & Evaluation
 **Purpose**: Demonstrate basic RLlib training with a market maker agent
 **Duration**: 7-13 minutes (training + evaluation)
 
@@ -72,17 +70,16 @@ uv run streamlit run dashboard/trading_dashboard.py
   - Profit/Loss tracking with realistic trading results
   - Risk management demonstration through order cancellation
 
-### Scenario 2: Interactive Dashboard
-**Purpose**: Monitor training progress and analyze results
-**Duration**: Ongoing
-**Command**: `uv run streamlit run dashboard/trading_dashboard.py`
+**Step 3: View Results in Dashboard**
+```bash
+uv run streamlit run dashboard/trading_dashboard.py
+```
 
-**What You'll See**:
-- Real-time training metrics
-- Agent performance comparison
-- Market dynamics visualization
-- Algorithm comparison charts
-- Anyscale features showcase
+**What You'll See in the Dashboard**:
+- Real-time training metrics and progress charts
+- Detailed evaluation results with P&L analysis
+- Action distribution breakdown
+- Episode-by-episode performance data
 
 ## 🎛️ Configuration Options
 
