@@ -72,17 +72,7 @@ uv run streamlit run dashboard/trading_dashboard.py
   - Profit/Loss tracking with realistic trading results
   - Risk management demonstration through order cancellation
 
-### Scenario 2: Algorithm Comparison
-**Purpose**: Compare different RL algorithms on the same environment
-**Duration**: 30-45 minutes
-**Command**: `uv run rllib-trading-arena train --algorithm all --iterations 100`
-
-**What You'll See**:
-- PPO algorithm training (A3C/IMPALA fallback to PPO due to Ray 2.49.1 compatibility)
-- Training time and convergence analysis
-- Final performance evaluation
-
-### Scenario 3: Interactive Dashboard
+### Scenario 2: Interactive Dashboard
 **Purpose**: Monitor training progress and analyze results
 **Duration**: Ongoing
 **Command**: `uv run streamlit run dashboard/trading_dashboard.py`
