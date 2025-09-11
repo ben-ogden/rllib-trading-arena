@@ -72,6 +72,20 @@ uv run trading-dashboard
 # View training metrics and progress charts
 ```
 
+## 📊 Dashboard Screenshots
+
+### Training Progress
+![Training Progress](assets/training-progress.png)
+
+### Training Performance
+![Training Performance](assets/training-performance.png)
+
+### Evaluation Results
+![Evaluation Results](assets/evaluation-results.png)
+
+### Evaluation Episodes
+![Evaluation Episodes](assets/eval-episodes.png)
+
 ## 🎛️ Configuration
 
 The demo uses `configs/trading_config.yaml` for all settings:
@@ -101,20 +115,6 @@ distributed:
   num_cpus_per_worker: 1
   num_gpus: 0
 ```
-
-## 📊 Dashboard Screenshots
-
-### Training Progress
-![Training Progress](assets/training-progress.png)
-
-### Training Performance
-![Training Performance](assets/training-performance.png)
-
-### Evaluation Results
-![Evaluation Results](assets/evaluation-results.png)
-
-### Evaluation Episodes
-![Evaluation Episodes](assets/eval-episodes.png)
 
 ## 📈 Understanding the Results
 
