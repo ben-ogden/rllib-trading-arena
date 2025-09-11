@@ -87,12 +87,12 @@ def create_default_config():
     }
 
 
-def run_single_agent_demo(iterations: int = 100, eval_episodes: int = 10, checkpoint_dir: str = "checkpoints/single_agent_demo", render: bool = False):
+def run_single_agent_demo(iterations: int = 100, eval_episodes: int = 0, checkpoint_dir: str = "checkpoints/single_agent_demo", render: bool = False):
     """Run a simple single agent trading demo.
     
     Args:
         iterations: Number of training iterations (calls to trainer.train())
-        eval_episodes: Number of evaluation episodes to run after training
+        eval_episodes: DEPRECATED - evaluation is now separate
         checkpoint_dir: Directory to save the trained model
         render: If True, show detailed step-by-step logging during training
     """
@@ -230,11 +230,9 @@ def run_single_agent_demo(iterations: int = 100, eval_episodes: int = 10, checkp
         logger.info("The agent has been trained and the model has been saved.")
         logger.info("Training metrics have been saved for the dashboard.")
         
-        # Run evaluation if requested
+        # Note: Evaluation is now separate - use 'evaluate' command
         if eval_episodes > 0:
-            logger.info(f"\nRunning evaluation with {eval_episodes} episodes...")
-            from .single_agent_evaluation import run_single_agent_evaluation
-            run_single_agent_evaluation(checkpoint_path=checkpoint_dir, episodes=eval_episodes)
+            logger.warning("⚠️ eval_episodes parameter is deprecated. Use 'evaluate' command separately.")
         
         logger.info("You can now use the trained model for trading or further evaluation.")
         logger.info("\nDemo completed successfully!")
@@ -243,6 +241,7 @@ def run_single_agent_demo(iterations: int = 100, eval_episodes: int = 10, checkp
         logger.error(f"Demo failed: {e}")
         raise
     finally:
+        # Always shutdown Ray after training
         ray.shutdown()
 
 

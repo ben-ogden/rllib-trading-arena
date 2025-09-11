@@ -30,10 +30,10 @@ uv sync
 
 ### 2. Train Single Agent
 ```bash
-# Full training with evaluation (recommended)
-uv run rllib-trading-arena train --iterations 100 --eval-episodes 5
+# Full training (recommended)
+uv run rllib-trading-arena train --iterations 100
 
-# Quick demo (faster, no evaluation)
+# Quick demo (faster)
 uv run rllib-trading-arena demo --iterations 10
 ```
 
@@ -51,30 +51,29 @@ uv run trading-dashboard
 ## 🎯 Train vs Demo Commands
 
 **`train`** - Full training suite (recommended):
-- Includes evaluation after training
-- More configuration options
-- Saves detailed results
+- Complete training with all configuration options
+- Saves detailed results and metrics
+- Clean separation from evaluation
 
 **`demo`** - Quick demonstration:
-- Faster execution
-- No evaluation
-- Good for testing and demos
+- Faster execution for testing
+- Minimal configuration
+- Good for quick demos and development
 
 ## 🚀 Complete Demo: Single Agent Training & Evaluation
 **Purpose**: Demonstrate basic RLlib training with a market maker agent
 **Duration**: 7-13 minutes (training + evaluation)
 
 **Step 1 - Training**:
-- **Command**: `uv run rllib-trading-arena train --iterations 100 --eval-episodes 5`
+- **Command**: `uv run rllib-trading-arena train --iterations 100`
 - **Duration**: 5-10 minutes
 - **What You'll See**:
   - PPO training on a market maker agent
   - Training metrics and progress
   - Agent learning to provide liquidity
   - Model saved to `checkpoints/single_agent_demo/`
-  - Automatic evaluation after training
 
-**Step 2 - Evaluation** (if not done automatically):
+**Step 2 - Evaluation**:
 - **Command**: `uv run rllib-trading-arena evaluate --episodes 5`
 - **Duration**: 2-3 minutes
 - **What You'll See**:
@@ -393,7 +392,6 @@ For advanced users who need full parameter control:
 
 ### Training Parameters
 - `--iterations` / `-i`: Number of training iterations
-- `--eval-episodes` / `-e`: Number of evaluation episodes after training
 - `--checkpoint-dir` / `-d`: Custom directory to save checkpoints
 - `--algorithm` / `-a`: Algorithm choice (ppo/impala/sac/all)
 

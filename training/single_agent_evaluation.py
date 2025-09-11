@@ -90,7 +90,7 @@ def create_default_config():
             "gamma": 0.99,
         },
         "distributed": {
-            "num_workers": 2,
+            "num_workers": 1,  # Minimal workers for evaluation
             "num_cpus_per_worker": 1,
             "num_gpus": 0,
         },
@@ -136,7 +136,7 @@ def load_trained_model(checkpoint_path):
             num_cpus_per_env_runner=1,
             rollout_fragment_length=64,  # Match batch size
         )
-        .build()
+        .build_algo()
     )
     
     # Restore from checkpoint
@@ -377,16 +377,20 @@ def save_evaluation_results(episode_details, total_rewards, total_trades, total_
         logger.warning(f"Could not save evaluation results: {e}")
 
 
-def run_single_agent_evaluation(checkpoint_path: str = "checkpoints/single_agent_demo", episodes: int = 5, render: bool = False):
+def run_single_agent_evaluation(checkpoint_path: str = "checkpoints/single_agent_demo", episodes: int = 5, render: bool = False, reuse_ray: bool = False):
     """Main evaluation function"""
     try:
         logger.info("🎯 Starting Single Agent Evaluation Demo")
         logger.info("=" * 50)
         
-        # Initialize Ray
-        if not ray.is_initialized():
-            ray.init(ignore_reinit_error=True)
+        # Initialize Ray (reuse existing cluster if requested)
+        if not reuse_ray:
+            if ray.is_initialized():
+                ray.shutdown()
+            ray.init(ignore_reinit_error=True, num_cpus=2)  # Limit CPU usage for evaluation
             logger.info("✅ Ray initialized successfully!")
+        else:
+            logger.info("✅ Reusing existing Ray cluster from training")
         
         # Check if checkpoint exists
         checkpoint_path_abs = os.path.abspath(checkpoint_path)
@@ -399,7 +403,7 @@ def run_single_agent_evaluation(checkpoint_path: str = "checkpoints/single_agent
         config = load_config()
         
         # Load trained model
-        trainer = load_trained_model(checkpoint_path)
+        trainer = load_trained_model(checkpoint_path_abs)
         
         # Run evaluation
         episode_details, total_rewards, total_trades, total_pnl = run_evaluation(
@@ -419,7 +423,10 @@ def run_single_agent_evaluation(checkpoint_path: str = "checkpoints/single_agent
         logger.error(f"❌ Evaluation failed: {e}")
         raise
     finally:
-        ray.shutdown()
+        # Only shutdown Ray if we started it (not reusing from training)
+        if not reuse_ray and ray.is_initialized():
+            ray.shutdown()
+            logger.info("🧹 Ray cluster cleaned up")
 
 
 if __name__ == "__main__":

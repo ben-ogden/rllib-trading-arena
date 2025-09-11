@@ -55,16 +55,12 @@ def cli(ctx, config: Path, verbose: bool):
               type=int,
               default=100,
               help='Number of training iterations (calls to trainer.train())')
-@click.option('--eval-episodes', '-e',
-              type=int,
-              default=10,
-              help='Number of evaluation episodes to run after training')
 @click.option('--checkpoint-dir', '-d',
               type=click.Path(path_type=Path),
               default='checkpoints',
               help='Directory to save model checkpoints')
 @click.pass_context
-def train(ctx, algorithm: str, iterations: int, eval_episodes: int, checkpoint_dir: Path):
+def train(ctx, algorithm: str, iterations: int, checkpoint_dir: Path):
     """Train single-agent models on the trading environment."""
     logger.info(f"🚀 Starting single-agent training with {algorithm.upper()}")
     
@@ -78,18 +74,18 @@ def train(ctx, algorithm: str, iterations: int, eval_episodes: int, checkpoint_d
         if algorithm == 'all':
             # Train with PPO (most stable with Ray 2.49.1)
             logger.info("🎯 Training with PPO algorithm (recommended for Ray 2.49.1)")
-            run_single_agent_demo(iterations=iterations, eval_episodes=eval_episodes, checkpoint_dir=str(checkpoint_dir / "single_agent_demo"))
+            run_single_agent_demo(iterations=iterations, eval_episodes=0, checkpoint_dir=str(checkpoint_dir / "single_agent_demo"))
             results = {'algorithm': 'ppo', 'status': 'completed'}
         else:
             # Train single algorithm (only PPO fully supported for now)
             if algorithm != 'ppo':
                 logger.warning(f"⚠️ Algorithm {algorithm} not fully supported with Ray 2.49.1, using PPO instead")
             logger.info(f"🎯 Training with {algorithm.upper()} algorithm")
-            run_single_agent_demo(iterations=iterations, eval_episodes=eval_episodes, checkpoint_dir=str(checkpoint_dir / "single_agent_demo"))
+            run_single_agent_demo(iterations=iterations, eval_episodes=0, checkpoint_dir=str(checkpoint_dir / "single_agent_demo"))
             results = {'algorithm': algorithm, 'status': 'completed'}
         
-        # Evaluation is handled within the demo
-        eval_results = {'status': 'completed', 'note': 'Evaluation included in training demo'}
+        # Note: Evaluation is separate - use 'evaluate' command after training
+        eval_results = {'status': 'skipped', 'note': 'Use separate evaluate command to test the trained model'}
         
         logger.info("✅ Training completed successfully!")
         logger.info("📊 Model saved to checkpoints/single_agent_demo/")
