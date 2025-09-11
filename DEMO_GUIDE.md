@@ -225,7 +225,9 @@ class MarketEvent(Enum):
    # Solution: Reduce batch size or workers
    # Edit configs/trading_config.yaml
    training:
-     batch_size: 16  # Reduce from 32
+     batch_size: 128  # Reduce from 256
+   distributed:
+     num_workers: 2   # Reduce from 4
    ```
 
 3. **Dashboard Not Loading**:
@@ -242,15 +244,15 @@ class MarketEvent(Enum):
    - Reduce `max_steps_per_episode`
 
 2. **Better Results**:
-   - Increase training iterations
-   - Tune hyperparameters
-   - Add more diverse agents
+   - Increase training iterations (episodes: 2000+)
+   - Tune hyperparameters (learning_rate, batch_size)
+   - Adjust reward function in trading_environment.py
 
 ## 📚 Learning Resources
 
 ### RLlib Documentation
 - [Single-Agent RL](https://docs.ray.io/en/latest/rllib/rllib-env.html)
-- [Algorithm Comparison](https://docs.ray.io/en/latest/rllib/rllib-algorithms.html)
+- [PPO Algorithm](https://docs.ray.io/en/latest/rllib/rllib-algorithms.html#ppo)
 - [Distributed Training](https://docs.ray.io/en/latest/rllib/rllib-training.html)
 
 ### Ray Documentation
