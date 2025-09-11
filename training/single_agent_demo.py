@@ -128,11 +128,7 @@ def run_single_agent_demo(iterations: int = 100, eval_episodes: int = 0, checkpo
         logging_level=logging.WARNING,  
         dashboard_host="127.0.0.1",
         dashboard_port=8265,
-        include_dashboard=True,
-        runtime_env={
-            "working_dir": "/Users/ben/github/rllib-hackathon",
-            "py_modules": ["/Users/ben/github/rllib-hackathon"]
-        }
+        include_dashboard=True
     )
     
     # Print dashboard URL and check if it's running
