@@ -21,13 +21,80 @@ import json
 import time
 import yaml
 import ray
+from typing import Tuple
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.core.rl_module.rl_module import RLModuleSpec
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from environments.trading_environment import TradingEnvironment
+from environments.trading_environment import TradingEnvironment, ActionType, OrderTypeAction
+
+
+def _normalize_action(action: np.ndarray) -> np.ndarray:
+    """
+    Normalize action values to valid ranges for the trading environment.
+    
+    Args:
+        action: Raw action array from model
+        
+    Returns:
+        Normalized action array with valid values
+    """
+    # Use enum values for bounds checking
+    action[0] = np.clip(action[0], ActionType.HOLD, ActionType.CANCEL)  # action_type
+    action[1] = np.clip(action[1], 0, 1)  # quantity
+    action[2] = np.clip(action[2], -1, 1)  # price_offset
+    action[3] = np.clip(action[3], OrderTypeAction.MARKET, OrderTypeAction.LIMIT)  # order_type
+    return action
+
+
+def _parse_action_for_analysis(action: np.ndarray, env: TradingEnvironment) -> Tuple[str, float, str]:
+    """
+    Parse action array into human-readable components for analysis.
+    
+    Args:
+        action: Action array from model
+        env: Trading environment to get calculated prices
+        
+    Returns:
+        Tuple of (action_name, quantity, price_string)
+    """
+    try:
+        action_type_idx = int(np.clip(action[0], ActionType.HOLD, ActionType.CANCEL))
+        action_type = ActionType(action_type_idx)
+        action_name = action_type.name
+        qty = float(action[1]) if len(action) > 1 else 0.0
+        
+        # Only show price for trading actions (BUY/SELL), not for HOLD/CANCEL
+        if action_type in [ActionType.BUY, ActionType.SELL]:
+            order_type_idx = int(np.clip(action[3], OrderTypeAction.MARKET, OrderTypeAction.LIMIT))
+            order_type = OrderTypeAction(order_type_idx)
+            
+            # Get the actual calculated price from the environment
+            agent_id = "market_maker_0"  # Single agent in evaluation
+            calculated_price = None
+            if agent_id in env.agents and env.agents[agent_id].last_action:
+                calculated_price = env.agents[agent_id].last_action.get("price")
+            
+            # Show both order type and price
+            if order_type == OrderTypeAction.MARKET:
+                # For market orders, show current market price (what it will execute at)
+                current_market_price = env.market_simulator.current_price
+                price = f"market ${current_market_price:.2f}"
+            else:  # LIMIT order
+                if calculated_price is not None:
+                    price = f"limit ${calculated_price:.2f}"
+                else:
+                    price = "limit"
+        else:
+            # For HOLD and CANCEL actions, price is not relevant
+            price = "N/A"
+            
+        return action_name, qty, price
+    except (IndexError, ValueError, TypeError):
+        return "UNKNOWN", 0.0, "N/A"
+
 
 # Configure logging
 logging.basicConfig(
@@ -200,20 +267,16 @@ def run_evaluation(trainer, config, num_episodes=5):
             # Create and sample from the distribution
             action_dist = Normal(mean, std)
             action = action_dist.sample().numpy()
+            
+            # Normalize action to valid ranges
+            action = _normalize_action(action)
+            
             obs, reward, terminated, truncated, info = eval_env.step(action)
             episode_reward += reward
             step += 1
             
             # Track actions for analysis
-            action_names = ["HOLD", "BUY", "SELL", "CANCEL"]
-            try:
-                action_name = action_names[int(action[0])] if len(action) > 0 else "UNKNOWN"
-                qty = action[1] if len(action) > 1 else 0.0
-                price = action[2] if len(action) > 2 and action[2] is not None else "market"
-            except (IndexError, ValueError, TypeError):
-                action_name = "UNKNOWN"
-                qty = 0.0
-                price = "market"
+            action_name, qty, price = _parse_action_for_analysis(action, eval_env)
             
             actions_taken.append({
                 'step': int(step),
