@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
               type=click.Path(exists=True),
               default='configs/trading_config.yaml',
               help='Path to configuration file')
-def main(port: int, host: str, config: str):
+def main(port: int, host: str, config: str) -> None:
     """Launch the RLlib Trading Demo Dashboard."""
     logger.info(f"Starting dashboard on {host}:{port}")
     
